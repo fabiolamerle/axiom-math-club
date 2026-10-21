@@ -4,7 +4,8 @@ Sitio donde los estudiantes reservan sesiones con los tutores de AXIOM.
 
 - **Calendario del club**: muestra los eventos futuros y la disponibilidad de cada tutor (un color por tutor). Al tocar un día se ven los detalles y un botón para reservar ese día.
 - El estudiante escoge **tema** (lista desplegable), **día** y **hora**. Solo ve horas en que algún tutor está disponible.
-- Al reservar, **el tutor recibe un email** con los datos del estudiante y **el estudiante recibe una confirmación**.
+- El estudiante pone su **email y teléfono**. Al pedir la sesión, **el tutor recibe un email con botones Accept / Decline**.
+- Cuando el tutor contesta, **el estudiante recibe un email** diciendo si fue aceptada o no. Si se rechaza, la hora queda libre otra vez.
 - Todo se guarda en una **Google Sheet**: ahí los tutores ponen su disponibilidad y ven las reservas.
 
 Mientras no conectes el backend, el sitio funciona en **modo demo** (horarios de ejemplo, sin emails).
@@ -19,21 +20,21 @@ Mientras no conectes el backend, el sitio funciona en **modo demo** (horarios de
 ## Configuración (unos 10 minutos)
 
 ### 1. Crear la hoja y el backend
-1. Crea una Google Sheet nueva con la cuenta de Gmail del club (los emails saldrán desde esa cuenta).
+1. Crea una Google Sheet nueva con la cuenta de Google que va a manejar el sistema (puede ser un Gmail personal). Los emails a tutores y estudiantes salen desde esa cuenta, con el nombre "AXIOM Math Club".
 2. Menú **Extensiones → Apps Script**. Borra lo que haya y pega todo el contenido de `Code.gs`. Guarda.
-3. Arriba, selecciona la función `setup` y presiona **Ejecutar**. Acepta los permisos (Google avisará que la app no está verificada: *Configuración avanzada → Ir a…*). Esto crea las pestañas `Availability`, `Topics`, `Events` y `Bookings`. `Availability` ya viene con los cuatro tutores y los horarios de Hernandez (lun y mié, 18:00–19:00) y Merle Cintron (mar y jue, 12:30–14:30). Faltan los de Vivas y Cortes Garay: llena `Day`, `Start` y `End` en sus filas. **Escribe el email de cada tutor en la columna `Tutor Email`** (no están en el código para que no queden públicos en GitHub).
+3. Arriba, selecciona la función `setup` y presiona **Ejecutar**. Acepta los permisos (Google avisará que la app no está verificada: *Configuración avanzada → Ir a…*). Esto crea las pestañas `Availability`, `Topics`, `Events` y `Bookings`. `Availability` ya viene con los cuatro tutores, sus emails y los horarios de Hernandez (lun y mié, 18:00–19:00) y Merle Cintron (mar y jue, 12:30–14:30). Faltan los de Vivas y Cortes Garay: llena `Day`, `Start` y `End` en sus filas.
 
 ### 2. Poner la disponibilidad de los tutores
 En la pestaña **Availability**, una fila por bloque de tiempo:
 
 | Tutor | Tutor Email | Day | Start | End |
 |---|---|---|---|---|
-| C/3C Hernandez | *(email)* | Monday | 18:00 | 19:00 |
-| C/3C Hernandez | *(email)* | Wednesday | 18:00 | 19:00 |
-| C/2d Lt Merle Cintron | *(email)* | Tuesday | 12:30 | 14:30 |
-| C/2d Lt Merle Cintron | *(email)* | Thursday | 12:30 | 14:30 |
-| C/2d Lt Vivas | *(email)* | | | |
-| C/Maj Cortes Garay | *(email)* | | | |
+| C/3C Hernandez | luan.hernandez@upr.edu | Monday | 18:00 | 19:00 |
+| C/3C Hernandez | luan.hernandez@upr.edu | Wednesday | 18:00 | 19:00 |
+| C/2d Lt Merle Cintron | Fabiola.merle@upr.edu | Tuesday | 12:30 | 14:30 |
+| C/2d Lt Merle Cintron | Fabiola.merle@upr.edu | Thursday | 12:30 | 14:30 |
+| C/2d Lt Vivas | Julian.vivas@upr.edu | | | |
+| C/Maj Cortes Garay | Jorge.cortes4@upr.edu | | | |
 
 - **Day**: un día de la semana (inglés o español) se repite cada semana; una fecha (`2026-10-28` o `10/28/2026`) es solo ese día.
 - El bloque se divide en sesiones de 30 minutos. Si dos tutores coinciden, el estudiante ve "2 tutors free" y se asigna al primero libre.
@@ -65,12 +66,18 @@ Cualquier hosting estático sirve. Lo más fácil:
 - **Netlify Drop** (app.netlify.com/drop): arrastra la carpeta y listo.
 - **GitHub Pages**: sube los archivos a un repositorio y activa Pages en *Settings → Pages*.
 
+## Cómo funciona una reserva
+1. El estudiante escoge tema, día y hora, y pone nombre, email, teléfono y grado.
+2. La reserva queda como **Pending** en `Bookings` y esa hora ya no se le ofrece a nadie más.
+3. El tutor recibe un email con los datos del estudiante y los botones **Accept** y **Decline**. Al tocar uno se abre una página para confirmar (así los filtros de seguridad del correo no pueden contestar solos).
+4. El estudiante recibe un email: **Confirmed** si se aceptó, o **Not available** con un enlace para escoger otra hora si se rechazó. Una sesión rechazada libera la hora.
+
 ## Uso diario
-- **Ver reservas**: pestaña `Bookings`.
+- **Ver reservas**: pestaña `Bookings` (columna `Status`: Pending, Accepted o Declined).
 - **Cancelar una reserva**: cambia `Status` a `Cancelled`; la hora vuelve a quedar libre.
 - **Avisar a más personas** (ej. el presidente del club): en `Code.gs`, `alsoNotify: 'presidente@gmail.com'`.
 - **Ajustes** en `CONFIG` de `Code.gs`: duración de sesión, cuántos días adelante se puede reservar, y con cuántas horas de anticipación mínima.
 - La fecha de la primera reunión ("Oct. 28") está en `index.html`.
 
 ## Límites
-Gmail gratis permite unos 100 emails al día desde Apps Script (cada reserva usa 2). Para un club escolar sobra.
+Gmail gratis permite unos 100 emails al día desde Apps Script (cada reserva usa 3: tutor, estudiante y la respuesta). Para un club escolar sobra.

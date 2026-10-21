@@ -7,7 +7,8 @@
  *                 Day is a weekday ("Monday" / "Lunes") for every week, or a date (2026-10-28) for one day.
  *   Topics        Category | Topic
  *   Events        Date | Start | End | Title | Location | Details  (shown on the site's calendar)
- *   Bookings      written by the site. Set Status to "Cancelled" to free a slot.
+ *   Bookings      written by the site. Status goes Pending -> Accepted / Declined when the tutor
+ *                 answers from the email. Set Status to "Cancelled" to free a slot by hand.
  */
 const CONFIG = {
   clubName: 'AXIOM Math Club',
@@ -15,11 +16,12 @@ const CONFIG = {
   daysAhead: 21,        // how far ahead students can book
   calendarDays: 62,     // how far ahead the calendar shows tutor availability
   minNoticeHours: 12,   // students can't book closer than this to the session
-  alsoNotify: '',       // extra emails (comma-separated) that get every booking, e.g. the club president
+  alsoNotify: '',       // extra emails (comma-separated) that get every booking request, e.g. the club president
+  siteUrl: 'https://fabiolamerle.github.io/axiom-math-club/',
 };
 
 const BOOKING_HEADERS = ['Created', 'Booking ID', 'Status', 'Date', 'Time', 'Tutor', 'Tutor Email',
-  'Student', 'Student Email', 'Grade', 'Topic', 'Notes'];
+  'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Notes', 'Responded', 'Token'];
 
 const DEFAULT_TOPICS = [
   ['Precalculus', 'Functions & Graphs'],
@@ -50,15 +52,14 @@ const WEEKDAYS = {
 /** Run once from the Apps Script editor to create the sheets. */
 function setup() {
   const ss = SpreadsheetApp.getActive();
-  // Tutor emails are typed straight into the sheet, not here, so they stay private.
   ensureSheet_(ss, 'Availability', ['Tutor', 'Tutor Email', 'Day', 'Start', 'End'], [
-    ['C/3C Hernandez', '', 'Monday', '18:00', '19:00'],
-    ['C/3C Hernandez', '', 'Wednesday', '18:00', '19:00'],
-    ['C/2d Lt Merle Cintron', '', 'Tuesday', '12:30', '14:30'],
-    ['C/2d Lt Merle Cintron', '', 'Thursday', '12:30', '14:30'],
+    ['C/3C Hernandez', 'luan.hernandez@upr.edu', 'Monday', '18:00', '19:00'],
+    ['C/3C Hernandez', 'luan.hernandez@upr.edu', 'Wednesday', '18:00', '19:00'],
+    ['C/2d Lt Merle Cintron', 'Fabiola.merle@upr.edu', 'Tuesday', '12:30', '14:30'],
+    ['C/2d Lt Merle Cintron', 'Fabiola.merle@upr.edu', 'Thursday', '12:30', '14:30'],
     // Hours not set yet: fill in Day / Start / End.
-    ['C/2d Lt Vivas', '', '', '', ''],
-    ['C/Maj Cortes Garay', '', '', '', ''],
+    ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', '', '', ''],
+    ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', '', '', ''],
   ]);
   ensureSheet_(ss, 'Events', ['Date', 'Start', 'End', 'Title', 'Location', 'Details'], [
     ['2026-10-28', '', '', 'AXIOM 1st Meeting', '', 'Our first club meeting. Everyone is welcome.'],
@@ -78,6 +79,8 @@ function ensureSheet_(ss, name, headers, rows) {
 
 // ---------- web endpoints ----------
 function doGet(e) {
+  const q = (e && e.parameter) || {};
+  if (q.action === 'respond') return responsePage_(q.id, q.token, q.decision);
   try {
     const slots = openSlots_().map(s => ({ date: s.date, time: s.time, tutors: s.tutors.length }));
     const blocks = availabilityBlocks_(CONFIG.calendarDays)
@@ -100,11 +103,12 @@ function doPost(e) {
   }
   const clean = v => String(v == null ? '' : v).trim().slice(0, 500);
   const b = {
-    name: clean(p.name), email: clean(p.email), grade: clean(p.grade),
+    name: clean(p.name), email: clean(p.email), phone: clean(p.phone), grade: clean(p.grade),
     topic: clean(p.topic), date: clean(p.date), time: clean(p.time), notes: clean(p.notes),
   };
   if (!b.name || !b.grade) return json_({ ok: false, error: 'invalid', message: 'Fill in your name and grade.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)) return json_({ ok: false, error: 'invalid', message: 'Enter a valid email.' });
+  if (b.phone.replace(/\D/g, '').length < 7) return json_({ ok: false, error: 'invalid', message: 'Enter a valid phone number.' });
   if (!topics_().some(t => t[1] === b.topic)) return json_({ ok: false, error: 'invalid', message: 'Choose a topic from the list.' });
 
   const lock = LockService.getScriptLock();
@@ -116,23 +120,111 @@ function doPost(e) {
     const tutor = slot.tutors[0];
     booking = {
       id: 'AX-' + Utilities.getUuid().slice(0, 6).toUpperCase(),
+      token: Utilities.getUuid().replace(/-/g, ''),
       date: b.date, time: b.time, tutor: tutor.name, tutorEmail: tutor.email, topic: b.topic,
     };
-    SpreadsheetApp.getActive().getSheetByName('Bookings').appendRow([
-      new Date().toISOString(), booking.id, 'Confirmed', b.date, b.time, tutor.name, tutor.email,
-      b.name, b.email, b.grade, b.topic, b.notes,
-    ]);
+    const rec = {
+      'Created': new Date().toISOString(), 'Booking ID': booking.id, 'Status': 'Pending',
+      'Date': b.date, 'Time': b.time, 'Tutor': tutor.name, 'Tutor Email': tutor.email,
+      'Student': b.name, 'Student Email': b.email, 'Student Phone': b.phone, 'Grade': b.grade,
+      'Topic': b.topic, 'Notes': b.notes, 'Responded': '', 'Token': booking.token,
+    };
+    const sh = SpreadsheetApp.getActive().getSheetByName('Bookings');
+    const headers = sh.getRange(1, 1, 1, sh.getLastColumn()).getValues()[0].map(h => String(h).trim());
+    sh.appendRow(headers.map(h => (h in rec ? rec[h] : '')));
     SpreadsheetApp.flush();
   } finally {
     lock.releaseLock();
   }
 
   try {
-    sendEmails_(booking, b);
+    sendRequestEmails_(booking, b);
   } catch (err) {
-    console.error('Email failed: ' + err); // the booking is saved even if email fails
+    console.error('Email failed: ' + err); // the request is saved even if email fails
   }
-  return json_({ ok: true, booking: { id: booking.id, date: booking.date, time: booking.time, tutor: booking.tutor, topic: booking.topic } });
+  return json_({ ok: true, booking: { id: booking.id, date: booking.date, time: booking.time, tutor: booking.tutor, topic: booking.topic, status: 'Pending' } });
+}
+
+// ---------- tutor accepts / declines ----------
+// The email links open a page with a button instead of answering on open, so email
+// security scanners that pre-open links can't accept or decline by accident.
+function responsePage_(id, token, decision) {
+  const found = findBooking_(id);
+  const valid = found && token && found.rec['Token'] === token;
+  const status = valid ? String(found.rec['Status']) : '';
+  let body;
+  if (!valid) {
+    body = '<h1>Link not valid</h1><p>This link is incomplete or the booking no longer exists.</p>';
+  } else if (status !== 'Pending') {
+    body = '<h1>Already answered</h1><p>This session is marked <b>' + esc_(status) + '</b>.</p>' + detailsTable_(found.rec, true);
+  } else {
+    const accept = decision !== 'decline';
+    body = '<h1>' + (accept ? 'Accept' : 'Decline') + ' this session?</h1>' + detailsTable_(found.rec, true) +
+      '<div id="actions">' +
+      '<button class="primary" onclick="send(\'' + (accept ? 'accept' : 'decline') + '\')">' + (accept ? 'Accept session' : 'Decline session') + '</button>' +
+      '<button class="secondary" onclick="send(\'' + (accept ? 'decline' : 'accept') + '\')">' + (accept ? 'Decline instead' : 'Accept instead') + '</button>' +
+      '</div><p id="msg"></p>' +
+      '<script>function send(d){document.getElementById("actions").hidden=true;' +
+      'document.getElementById("msg").textContent="Saving…";' +
+      'google.script.run.withSuccessHandler(function(r){document.getElementById("msg").textContent=r.message;})' +
+      '.withFailureHandler(function(){document.getElementById("msg").textContent="Something went wrong. Reload the page and try again.";' +
+      'document.getElementById("actions").hidden=false;})' +
+      '.respondToBooking(' + JSON.stringify(id) + ',' + JSON.stringify(token) + ',d);}</script>';
+  }
+  const html = '<style>body{font-family:Arial,sans-serif;color:#142238;max-width:560px;margin:32px auto;padding:0 16px}' +
+    'h1{color:#1b2d4b;font-size:26px}button{font-size:17px;padding:12px 20px;border-radius:8px;margin:16px 8px 0 0;cursor:pointer}' +
+    '.primary{background:#2c5aa8;color:#fff;border:0}.secondary{background:#fff;color:#2c5aa8;border:2px solid #2c5aa8}' +
+    '#msg{font-size:18px;font-weight:bold;color:#1d7a4a}td{padding:6px 10px 6px 0}</style>' +
+    '<p style="letter-spacing:.2em;color:#5a6880;font-size:12px">' + esc_(CONFIG.clubName.toUpperCase()) + '</p>' + body;
+  return HtmlService.createHtmlOutput(html).setTitle(CONFIG.clubName).addMetaTag('viewport', 'width=device-width, initial-scale=1');
+}
+
+/** Called from the tutor's confirmation page. */
+function respondToBooking(id, token, decision) {
+  const lock = LockService.getScriptLock();
+  lock.waitLock(15000);
+  let found, status;
+  try {
+    found = findBooking_(id);
+    if (!found || !token || found.rec['Token'] !== token) return { ok: false, message: 'This link is not valid.' };
+    if (found.rec['Status'] !== 'Pending') return { ok: false, message: 'This session was already marked ' + found.rec['Status'] + '.' };
+    status = decision === 'decline' ? 'Declined' : 'Accepted';
+    found.set('Status', status);
+    found.set('Responded', new Date().toISOString());
+    SpreadsheetApp.flush();
+  } finally {
+    lock.releaseLock();
+  }
+  found.rec['Status'] = status;
+  try {
+    sendDecisionEmail_(found.rec);
+  } catch (err) {
+    console.error('Email failed: ' + err);
+    return { ok: true, message: status + '. We could not email the student, so please contact them directly.' };
+  }
+  return { ok: true, message: status === 'Accepted'
+    ? 'Accepted. The student got a confirmation email.'
+    : 'Declined. The student was told to pick another time, and the slot is open again.' };
+}
+
+function findBooking_(id) {
+  if (!id) return null;
+  const ss = SpreadsheetApp.getActive();
+  const tz = ss.getSpreadsheetTimeZone();
+  const sh = ss.getSheetByName('Bookings');
+  const values = sh.getDataRange().getValues();
+  const headers = values[0].map(h => String(h).trim());
+  const idCol = headers.indexOf('Booking ID');
+  for (let i = 1; i < values.length; i++) {
+    if (String(values[i][idCol]) !== String(id)) continue;
+    const rec = {};
+    headers.forEach((h, j) => { rec[h] = values[i][j]; });
+    rec['Date'] = cellDate_(rec['Date'], tz);
+    rec['Time'] = cellTime_(rec['Time'], tz);
+    const row = i + 1;
+    return { rec: rec, set: (h, v) => sh.getRange(row, headers.indexOf(h) + 1).setValue(v) };
+  }
+  return null;
 }
 
 // ---------- availability ----------
@@ -143,7 +235,8 @@ function openSlots_() {
 
   const booked = {};
   readRows_(ss, 'Bookings').forEach(r => {
-    if (String(r['Status']).toLowerCase().indexOf('cancel') === 0) return;
+    const status = String(r['Status']).toLowerCase();
+    if (status.indexOf('cancel') === 0 || status.indexOf('declin') === 0) return; // slot is free again
     booked[[String(r['Tutor']).trim(), cellDate_(r['Date'], tz), cellTime_(r['Time'], tz)].join('|')] = true;
   });
 
@@ -227,35 +320,86 @@ function topics_() {
 }
 
 // ---------- email ----------
-function sendEmails_(bk, st) {
-  const when = whenText_(bk.date, bk.time);
-  const rows = [['Topic', bk.topic], ['When', when], ['Tutor', bk.tutor], ['Student', st.name + ' (' + st.grade + ')'],
-    ['Student email', st.email], ['Notes', st.notes || '—'], ['Booking ID', bk.id]];
-  const table = '<table cellpadding="6" style="border-collapse:collapse;font-family:Arial,sans-serif">' +
-    rows.map(r => '<tr><td style="color:#5a6880">' + esc_(r[0]) + '</td><td><b>' + esc_(r[1]) + '</b></td></tr>').join('') +
-    '</table>';
+const FONT_ = 'font-family:Arial,sans-serif;';
 
-  const staff = [bk.tutorEmail].concat(CONFIG.alsoNotify.split(',')).map(s => s.trim()).filter(Boolean);
-  if (staff.length) {
+function detailsTable_(r, forTutor) {
+  const rows = [['Topic', r['Topic']], ['When', whenText_(r['Date'], r['Time'])], ['Tutor', r['Tutor']]];
+  if (forTutor) {
+    rows.push(['Student', r['Student'] + ' (' + r['Grade'] + ')'], ['Student email', r['Student Email']],
+      ['Student phone', r['Student Phone']], ['Notes', r['Notes'] || '—']);
+  }
+  rows.push(['Booking ID', r['Booking ID']]);
+  return '<table cellpadding="6" style="border-collapse:collapse;' + FONT_ + '">' +
+    rows.map(x => '<tr><td style="color:#5a6880">' + esc_(x[0]) + '</td><td><b>' + esc_(x[1]) + '</b></td></tr>').join('') +
+    '</table>';
+}
+
+function button_(href, label, primary) {
+  return '<a href="' + esc_(href) + '" style="' + FONT_ + 'display:inline-block;padding:12px 22px;margin:8px 8px 0 0;' +
+    'border-radius:8px;font-weight:bold;text-decoration:none;' +
+    (primary ? 'background:#2c5aa8;color:#ffffff;' : 'background:#ffffff;color:#b3261e;border:2px solid #b3261e;') +
+    '">' + esc_(label) + '</a>';
+}
+
+function sendRequestEmails_(bk, st) {
+  const rec = {
+    'Topic': bk.topic, 'Date': bk.date, 'Time': bk.time, 'Tutor': bk.tutor, 'Booking ID': bk.id,
+    'Student': st.name, 'Grade': st.grade, 'Student Email': st.email, 'Student Phone': st.phone, 'Notes': st.notes,
+  };
+  const when = whenText_(bk.date, bk.time);
+  const base = ScriptApp.getService().getUrl() + '?action=respond&id=' + encodeURIComponent(bk.id) + '&token=' + bk.token;
+
+  if (bk.tutorEmail) {
     MailApp.sendEmail({
-      to: staff.join(','),
+      to: bk.tutorEmail,
       replyTo: st.email,
-      subject: 'New session booked: ' + bk.topic + ' · ' + when,
-      htmlBody: '<h2 style="font-family:Arial,sans-serif;color:#1b2d4b">New tutoring session</h2>' + table +
-        '<p style="font-family:Arial,sans-serif;color:#5a6880">Reply to this email to contact the student.</p>',
+      name: CONFIG.clubName,
+      subject: 'Session request: ' + bk.topic + ' · ' + when,
+      htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">New tutoring request</h2>' +
+        '<p style="' + FONT_ + '">' + esc_(st.name) + ' wants a session with you. Can you take it?</p>' +
+        detailsTable_(rec, true) + '<p>' + button_(base + '&decision=accept', 'Accept', true) +
+        button_(base + '&decision=decline', 'Decline', false) + '</p>' +
+        '<p style="' + FONT_ + 'color:#5a6880">The student gets an email as soon as you answer. Reply to this email to write to the student.</p>',
     });
   }
 
-  const confirm = {
+  const extra = CONFIG.alsoNotify.split(',').map(x => x.trim()).filter(Boolean);
+  if (extra.length) {
+    MailApp.sendEmail({
+      to: extra.join(','),
+      name: CONFIG.clubName,
+      subject: 'Session request for ' + bk.tutor + ': ' + bk.topic + ' · ' + when,
+      htmlBody: '<p style="' + FONT_ + '">FYI: waiting for ' + esc_(bk.tutor) + ' to accept or decline.</p>' + detailsTable_(rec, true),
+    });
+  }
+
+  MailApp.sendEmail({
     to: st.email,
     name: CONFIG.clubName,
-    subject: 'You\'re booked: ' + bk.topic + ' · ' + when,
-    htmlBody: '<h2 style="font-family:Arial,sans-serif;color:#1b2d4b">See you soon, ' + esc_(st.name.split(' ')[0]) + '!</h2>' +
-      '<p style="font-family:Arial,sans-serif">Your ' + esc_(CONFIG.clubName) + ' session is confirmed.</p>' + table +
-      '<p style="font-family:Arial,sans-serif;color:#5a6880">Need to cancel or reschedule? Reply to this email.</p>',
+    subject: 'Request received: ' + bk.topic + ' · ' + when,
+    htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">We got your request, ' + esc_(st.name.split(' ')[0]) + '!</h2>' +
+      '<p style="' + FONT_ + '">We sent it to ' + esc_(bk.tutor) + '. You\'ll get another email when they accept or decline.</p>' +
+      detailsTable_(rec, false),
+  });
+}
+
+function sendDecisionEmail_(r) {
+  const accepted = r['Status'] === 'Accepted';
+  const first = esc_(String(r['Student']).split(' ')[0]);
+  const msg = {
+    to: r['Student Email'],
+    name: CONFIG.clubName,
+    subject: (accepted ? 'Confirmed: ' : 'Not available: ') + r['Topic'] + ' · ' + whenText_(r['Date'], r['Time']),
+    htmlBody: accepted
+      ? '<h2 style="' + FONT_ + 'color:#1d7a4a">You\'re confirmed, ' + first + '!</h2>' +
+        '<p style="' + FONT_ + '">' + esc_(r['Tutor']) + ' accepted your session.</p>' + detailsTable_(r, false) +
+        '<p style="' + FONT_ + 'color:#5a6880">Need to cancel or reschedule? Reply to this email.</p>'
+      : '<h2 style="' + FONT_ + 'color:#1b2d4b">Sorry, ' + first + '</h2>' +
+        '<p style="' + FONT_ + '">' + esc_(r['Tutor']) + ' can\'t make this time. Please pick another one.</p>' +
+        detailsTable_(r, false) + '<p>' + button_(CONFIG.siteUrl + '#book', 'Pick another time', true) + '</p>',
   };
-  if (bk.tutorEmail) confirm.replyTo = bk.tutorEmail;
-  MailApp.sendEmail(confirm);
+  if (r['Tutor Email']) msg.replyTo = String(r['Tutor Email']);
+  MailApp.sendEmail(msg);
 }
 
 function whenText_(iso, time) {

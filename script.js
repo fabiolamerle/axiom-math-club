@@ -313,6 +313,7 @@ async function submitBooking(e) {
     time: state.time,
     name: f.elements.name.value.trim(),
     email: f.elements.email.value.trim(),
+    phone: f.elements.phone.value.trim(),
     grade: f.elements.grade.value,
     notes: f.elements.notes.value.trim(),
   };
@@ -320,12 +321,13 @@ async function submitBooking(e) {
   if (!payload.date || !payload.time) return showError("Pick a day and a time.");
   if (!payload.name) return showError("Enter your name.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return showError("Enter a valid email so we can confirm your session.");
+  if (payload.phone.replace(/\D/g, "").length < 7) return showError("Enter a phone number so your tutor can reach you.");
   if (!payload.grade) return showError("Select your grade.");
   showError("");
 
   const btn = $("#submit");
   btn.disabled = true;
-  btn.textContent = "Booking…";
+  btn.textContent = "Sending…";
   try {
     const res = state.demo
       ? demoBook(payload)
@@ -345,7 +347,7 @@ async function submitBooking(e) {
     showError("Couldn't reach the booking server. Check your connection and try again.");
   } finally {
     btn.disabled = false;
-    btn.textContent = "Book session";
+    btn.textContent = "Request session";
   }
 }
 
@@ -356,7 +358,7 @@ function showConfirmation(b, p) {
   $("#c-id").textContent = b.id;
   $("#c-msg").textContent = state.demo
     ? "Demo mode: no email was sent."
-    : `A confirmation was sent to ${p.email}. Your tutor has been notified.`;
+    : `${b.tutor} got your request. You'll get an email at ${p.email} when they accept or decline.`;
   $("#booking-form").hidden = true;
   $("#confirmation").hidden = false;
   $("#confirmation").focus();

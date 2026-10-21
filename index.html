@@ -43,7 +43,7 @@
         <p class="eyebrow">Free peer tutoring</p>
         <h1>Precalc got you stuck?</h1>
         <p class="marker">Don't do it alone!</p>
-        <p class="lede">Book a one-on-one session with an AXIOM tutor. Pick your topic, choose a time when a tutor is free, and you'll get a confirmation email.</p>
+        <p class="lede">Book a one-on-one session with an AXIOM tutor. Pick your topic, choose a time when a tutor is free, and you'll get an email as soon as your tutor confirms.</p>
         <div class="hero-actions">
           <a class="btn" href="#book">Book a session</a>
           <span class="meeting">1st club meeting: <strong>Oct. 28</strong></span>
@@ -58,7 +58,7 @@
     <ol class="steps">
       <li><strong>Choose a topic</strong><span>Tell us what you're working on so the right tutor shows up prepared.</span></li>
       <li><strong>Pick an open time</strong><span>You only see times when at least one tutor is free.</span></li>
-      <li><strong>Get confirmed</strong><span>You and your tutor both get an email with the details.</span></li>
+      <li><strong>Get confirmed</strong><span>Your tutor accepts or declines, and you get an email either way.</span></li>
     </ol>
   </section>
 
@@ -138,6 +138,10 @@
             <input id="email" name="email" type="email" autocomplete="email" required>
           </div>
           <div class="field">
+            <label for="phone">Phone number</label>
+            <input id="phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="787-555-1234" required>
+          </div>
+          <div class="field">
             <label for="grade">Grade</label>
             <select id="grade" name="grade" required>
               <option value="">Select…</option>
@@ -159,13 +163,13 @@
           </dl>
 
           <p id="form-error" class="error" role="alert" hidden></p>
-          <button type="submit" class="btn btn-block" id="submit">Book session</button>
+          <button type="submit" class="btn btn-block" id="submit">Request session</button>
         </div>
       </form>
 
       <div id="confirmation" class="panel confirmation" tabindex="-1" hidden>
         <img src="logo.png" alt="" width="72" height="72">
-        <h3>You're booked!</h3>
+        <h3 id="c-title">Request sent!</h3>
         <dl class="summary">
           <div><dt>Topic</dt><dd id="c-topic"></dd></div>
           <div><dt>When</dt><dd id="c-when"></dd></div>
@@ -173,7 +177,7 @@
           <div><dt>Booking ID</dt><dd id="c-id" class="mono"></dd></div>
         </dl>
         <p id="c-msg" class="muted"></p>
-        <button type="button" class="btn btn-ghost" id="book-another">Book another session</button>
+        <button type="button" class="btn btn-ghost" id="book-another">Request another session</button>
       </div>
     </div>
   </section>
