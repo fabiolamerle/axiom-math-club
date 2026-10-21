@@ -58,7 +58,11 @@ function setup() {
     ['C/2d Lt Merle Cintron', 'Fabiola.merle@upr.edu', 'Tuesday', '12:30', '14:30'],
     ['C/2d Lt Merle Cintron', 'Fabiola.merle@upr.edu', 'Thursday', '12:30', '14:30'],
     // Hours not set yet: fill in Day / Start / End.
-    ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', '', '', ''],
+    ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Monday', '16:30', '19:30'],
+    ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Tuesday', '16:30', '19:30'],
+    ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Wednesday', '16:30', '19:30'],
+    ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Thursday', '16:30', '19:30'],
+    ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Friday', '16:30', '19:30'],
     ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', '', '', ''],
   ]);
   ensureSheet_(ss, 'Events', ['Date', 'Start', 'End', 'Title', 'Location', 'Details'], [

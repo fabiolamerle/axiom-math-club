@@ -22,7 +22,7 @@ Mientras no conectes el backend, el sitio funciona en **modo demo** (horarios de
 ### 1. Crear la hoja y el backend
 1. Crea una Google Sheet nueva con la cuenta de Google que va a manejar el sistema (puede ser un Gmail personal). Los emails a tutores y estudiantes salen desde esa cuenta, con el nombre "AXIOM Math Club".
 2. Menú **Extensiones → Apps Script**. Borra lo que haya y pega todo el contenido de `Code.gs`. Guarda.
-3. Arriba, selecciona la función `setup` y presiona **Ejecutar**. Acepta los permisos (Google avisará que la app no está verificada: *Configuración avanzada → Ir a…*). Esto crea las pestañas `Availability`, `Topics`, `Events` y `Bookings`. `Availability` ya viene con los cuatro tutores, sus emails y los horarios de Hernandez (lun y mié, 18:00–19:00) y Merle Cintron (mar y jue, 12:30–14:30). Faltan los de Vivas y Cortes Garay: llena `Day`, `Start` y `End` en sus filas.
+3. Arriba, selecciona la función `setup` y presiona **Ejecutar**. Acepta los permisos (Google avisará que la app no está verificada: *Configuración avanzada → Ir a…*). Esto crea las pestañas `Availability`, `Topics`, `Events` y `Bookings`. `Availability` ya viene con los cuatro tutores, sus emails y los horarios de Hernandez (lun y mié, 18:00–19:00) y Merle Cintron (mar y jue, 12:30–14:30) y Vivas (lun a vie, 16:30–19:30). Falta el de Cortes Garay: llena `Day`, `Start` y `End` en su fila.
 
 ### 2. Poner la disponibilidad de los tutores
 En la pestaña **Availability**, una fila por bloque de tiempo:
@@ -33,7 +33,8 @@ En la pestaña **Availability**, una fila por bloque de tiempo:
 | C/3C Hernandez | luan.hernandez@upr.edu | Wednesday | 18:00 | 19:00 |
 | C/2d Lt Merle Cintron | Fabiola.merle@upr.edu | Tuesday | 12:30 | 14:30 |
 | C/2d Lt Merle Cintron | Fabiola.merle@upr.edu | Thursday | 12:30 | 14:30 |
-| C/2d Lt Vivas | Julian.vivas@upr.edu | | | |
+| C/2d Lt Vivas | Julian.vivas@upr.edu | Monday | 16:30 | 19:30 |
+| C/2d Lt Vivas | Julian.vivas@upr.edu | Tuesday … Friday (una fila por día) | 16:30 | 19:30 |
 | C/Maj Cortes Garay | Jorge.cortes4@upr.edu | | | |
 
 - **Day**: un día de la semana (inglés o español) se repite cada semana; una fecha (`2026-10-28` o `10/28/2026`) es solo ese día.
@@ -77,7 +78,7 @@ Cualquier hosting estático sirve. Lo más fácil:
 - **Cancelar una reserva**: cambia `Status` a `Cancelled`; la hora vuelve a quedar libre.
 - **Avisar a más personas** (ej. el presidente del club): en `Code.gs`, `alsoNotify: 'presidente@gmail.com'`.
 - **Ajustes** en `CONFIG` de `Code.gs`: duración de sesión, cuántos días adelante se puede reservar, y con cuántas horas de anticipación mínima.
-- La fecha de la primera reunión ("Oct. 28") está en `index.html`.
+- La fecha de la primera reunión ("Oct. 28") y el texto del anuncio que se mueve arriba (disclaimer) están en `index.html`.
 
 ## Límites
 Gmail gratis permite unos 100 emails al día desde Apps Script (cada reserva usa 3: tutor, estudiante y la respuesta). Para un club escolar sobra.

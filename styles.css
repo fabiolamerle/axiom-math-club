@@ -26,6 +26,9 @@
   /* one color per tutor, assigned in order of the Availability sheet */
   --t0: #2c5aa8; --t1: #a3477c; --t2: #1f8270; --t3: #b06a1c;
   --event: #1b2d4b; --event-fg: #ffffff;
+
+  /* disclaimer ticker: same high-visibility look in both themes */
+  --ticker-bg: #f5c400; --ticker-fg: #13233d;
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
@@ -50,7 +53,7 @@
 
 * { box-sizing: border-box; }
 [hidden] { display: none !important; }
-html { scroll-behavior: smooth; scroll-padding-top: 80px; }
+html { scroll-behavior: smooth; scroll-padding-top: 116px; }
 body {
   margin: 0;
   background: var(--bg);
@@ -100,6 +103,25 @@ a { color: var(--accent); }
 .btn:disabled { opacity: 0.6; cursor: progress; transform: none; }
 .btn-small { padding: 10px 16px; font-size: 0.9rem; background: var(--surface); color: var(--navy); }
 .site-header .btn-small { background: #ffffff; color: #1b2d4b; }
+
+/* Disclaimer ticker: a scoreboard-style crawl pinned above the header */
+.ticker {
+  overflow: hidden; background: var(--ticker-bg); color: var(--ticker-fg);
+  border-bottom: 2px solid var(--ticker-fg);
+}
+.ticker-track { display: flex; width: max-content; animation: ticker-crawl 22s linear infinite; }
+.ticker:hover .ticker-track { animation-play-state: paused; }
+.ticker-half { display: flex; flex: 0 0 auto; }
+.ticker-item {
+  flex: 0 0 auto; padding: 8px 48px 8px 0; white-space: nowrap;
+  font: 600 1rem/1.2 var(--font-display); letter-spacing: 0.08em; text-transform: uppercase;
+}
+.ticker-item b { margin-right: 8px; }
+@keyframes ticker-crawl { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track { animation: none; }
+  .ticker-half + .ticker-half { display: none; }
+}
 .btn-block { width: 100%; }
 .btn-ghost { background: transparent; color: var(--accent); border-color: var(--accent); }
 
