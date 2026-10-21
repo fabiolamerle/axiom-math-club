@@ -1,0 +1,436 @@
+// Paste your Google Apps Script web app URL here (see README.md).
+// While it is empty, the site runs in demo mode with sample times.
+const API_URL = "";
+
+const DEFAULT_TOPICS = [
+  ["Precalculus", "Functions & Graphs"],
+  ["Precalculus", "Polynomial & Rational Functions"],
+  ["Precalculus", "Exponential & Logarithmic Functions"],
+  ["Precalculus", "Trigonometry: Unit Circle"],
+  ["Precalculus", "Trigonometric Identities & Equations"],
+  ["Precalculus", "Inverse Trig Functions"],
+  ["Precalculus", "Sequences & Series"],
+  ["Precalculus", "Conic Sections"],
+  ["Precalculus", "Vectors & Parametric Equations"],
+  ["Precalculus", "Intro to Limits"],
+  ["Other math", "Algebra I"],
+  ["Other math", "Algebra II"],
+  ["Other math", "Geometry"],
+  ["Other math", "Calculus"],
+  ["Other math", "Statistics"],
+  ["Other math", "SAT / ACT Math"],
+  ["Other math", "Homework help (other)"],
+];
+
+const $ = (sel) => document.querySelector(sel);
+const state = {
+  demo: !API_URL,
+  slots: [],
+  topics: DEFAULT_TOPICS,
+  sessionMinutes: 30,
+  date: null,
+  time: null,
+  tutors: [],
+  availability: [],
+  events: [],
+  calMonth: null, // first day of the month shown
+  calDay: null,   // selected day (ISO)
+};
+
+// ---------- formatting ----------
+function parseISO(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+function isoOf(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function fmtTime(hhmm) {
+  const [h, m] = hhmm.split(":").map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+}
+function addMinutes(hhmm, mins) {
+  const [h, m] = hhmm.split(":").map(Number);
+  const t = h * 60 + m + mins;
+  return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
+}
+function fmtWhen(date, time) {
+  const day = parseISO(date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  return `${day}, ${fmtTime(time)} – ${fmtTime(addMinutes(time, state.sessionMinutes))}`;
+}
+function el(tag, attrs = {}, ...children) {
+  const node = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "class") node.className = v;
+    else if (k.startsWith("on")) node.addEventListener(k.slice(2), v);
+    else node.setAttribute(k, v);
+  }
+  for (const c of children) node.append(c);
+  return node;
+}
+
+// ---------- topics ----------
+function groupTopics() {
+  const groups = new Map();
+  for (const [cat, topic] of state.topics) {
+    if (!groups.has(cat)) groups.set(cat, []);
+    groups.get(cat).push(topic);
+  }
+  return groups;
+}
+function renderTopics() {
+  const select = $("#topic");
+  const current = select.value;
+  select.replaceChildren(el("option", { value: "" }, "Choose a topic…"));
+  const list = $("#topic-list");
+  list.replaceChildren();
+  for (const [cat, topics] of groupTopics()) {
+    const og = el("optgroup", { label: cat });
+    topics.forEach((t) => og.append(el("option", { value: t }, t)));
+    select.append(og);
+    list.append(el("div", {}, el("h3", {}, cat), el("ul", {}, ...topics.map((t) => el("li", {}, t)))));
+  }
+  select.value = current;
+}
+
+// ---------- slots ----------
+async function loadSlots() {
+  try {
+    const data = state.demo ? demoSlots() : await (await fetch(`${API_URL}?action=slots`)).json();
+    if (data.error) throw new Error(data.error);
+    state.slots = data.slots || [];
+    if (data.topics && data.topics.length) state.topics = data.topics;
+    if (data.sessionMinutes) state.sessionMinutes = data.sessionMinutes;
+    state.tutors = data.tutors || [];
+    state.availability = data.availability || [];
+    state.events = data.events || [];
+  } catch (err) {
+    console.error(err);
+    $("#dates").replaceChildren(el("p", { class: "error" }, "Couldn't load open times. Refresh the page to try again."));
+    $("#day-detail").replaceChildren(el("p", { class: "error" }, "Couldn't load the calendar. Refresh the page to try again."));
+    return;
+  }
+  $("#session-length").textContent = state.sessionMinutes;
+  renderTopics();
+  renderDates();
+  renderCalendar();
+}
+
+function slotsByDate() {
+  const map = new Map();
+  for (const s of state.slots) {
+    if (!map.has(s.date)) map.set(s.date, []);
+    map.get(s.date).push(s);
+  }
+  return map;
+}
+
+function renderDates() {
+  const byDate = slotsByDate();
+  const box = $("#dates");
+  if (!byDate.size) {
+    box.replaceChildren(el("p", { class: "muted" }, "No open times in the next few weeks. Check back soon."));
+    state.date = state.time = null;
+    renderTimes();
+    return;
+  }
+  if (!byDate.has(state.date)) { state.date = null; state.time = null; }
+  box.replaceChildren(
+    ...[...byDate].map(([date, slots]) => {
+      const d = parseISO(date);
+      return el("button", {
+        type: "button", class: "date-btn", "aria-pressed": String(date === state.date),
+        "aria-label": `${d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}, ${slots.length} open times`,
+        onclick: () => { state.date = date; state.time = null; renderDates(); },
+      },
+        el("span", { class: "dow" }, d.toLocaleDateString("en-US", { weekday: "short" })),
+        el("span", { class: "day" }, String(d.getDate())),
+        el("span", { class: "mon" }, d.toLocaleDateString("en-US", { month: "short" })),
+        el("span", { class: "count" }, `${slots.length} open`),
+      );
+    })
+  );
+  renderTimes();
+}
+
+function renderTimes() {
+  const box = $("#times");
+  if (!state.date) {
+    box.replaceChildren(el("p", { class: "muted" }, "Pick a day first."));
+  } else {
+    const slots = slotsByDate().get(state.date) || [];
+    box.replaceChildren(
+      ...slots.map((s) => el("button", {
+        type: "button", class: "time-btn", "aria-pressed": String(s.time === state.time),
+        onclick: () => { state.time = s.time; renderTimes(); },
+      },
+        fmtTime(s.time),
+        el("small", {}, s.tutors === 1 ? "1 tutor free" : `${s.tutors} tutors free`),
+      ))
+    );
+  }
+  renderSummary();
+}
+
+function renderSummary() {
+  $('#summary [data-k="topic"]').textContent = $("#topic").value || "—";
+  $('#summary [data-k="when"]').textContent = state.date && state.time ? fmtWhen(state.date, state.time) : "—";
+}
+
+// ---------- calendar ----------
+const todayISO = () => isoOf(new Date());
+function tutorColor(name) {
+  const i = state.tutors.indexOf(name);
+  return `var(--t${(i < 0 ? 0 : i) % 4})`;
+}
+function shortName(name) {
+  return name.replace(/^C\/\S+(\s+Lt)?\s+/, ""); // "C/2d Lt Vivas" -> "Vivas"
+}
+function initials(name) {
+  return shortName(name).split(/\s+/).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+}
+function fmtRange(start, end) {
+  if (!start) return "Time TBA";
+  return end ? `${fmtTime(start)} – ${fmtTime(end)}` : fmtTime(start);
+}
+function dayData(iso) {
+  return {
+    events: $("#show-events").checked ? state.events.filter((e) => e.date === iso) : [],
+    blocks: $("#show-tutors").checked ? state.availability.filter((b) => b.date === iso) : [],
+  };
+}
+
+function renderCalendar() {
+  const now = new Date();
+  if (!state.calMonth) state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  if (!state.calDay) state.calDay = todayISO();
+  const m = state.calMonth;
+  $("#cal-title").textContent = m.toLocaleDateString("en-US", { month: "long", year: "numeric" });
+  $("#cal-prev").disabled = m.getFullYear() === now.getFullYear() && m.getMonth() === now.getMonth();
+
+  const cells = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => el("div", { class: "cal-dow" }, d));
+  for (let i = 0; i < m.getDay(); i++) cells.push(el("div", { class: "cal-cell blank", "aria-hidden": "true" }));
+  const daysInMonth = new Date(m.getFullYear(), m.getMonth() + 1, 0).getDate();
+  const today = todayISO();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const iso = isoOf(new Date(m.getFullYear(), m.getMonth(), d));
+    const { events, blocks } = dayData(iso);
+    const tutors = [...new Set(blocks.map((b) => b.tutor))];
+    const cls = ["cal-cell", iso === today && "today", iso < today && "past"].filter(Boolean).join(" ");
+    const label = `${parseISO(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}: ` +
+      `${events.length} events, ${tutors.length} tutors available`;
+    const dots = el("span", { class: "cal-dots", "aria-hidden": "true" },
+      ...events.map(() => el("i", { style: "--c: var(--event)" })),
+      ...tutors.map((t) => el("i", { style: `--c: ${tutorColor(t)}` })));
+    cells.push(el("button", {
+      type: "button", class: cls, "aria-pressed": String(iso === state.calDay), "aria-label": label,
+      onclick: () => { state.calDay = iso; renderCalendar(); },
+    },
+      el("span", { class: "cal-num" }, String(d)),
+      ...events.map((e) => el("span", { class: "cal-ev", title: e.title }, e.title)),
+      ...tutors.map((t) => el("span", { class: "cal-tu", style: `--c: ${tutorColor(t)}`, title: t }, shortName(t))),
+      dots,
+    ));
+  }
+  $("#cal-grid").replaceChildren(...cells);
+  renderDayDetail();
+  renderTutorList();
+}
+
+function renderDayDetail() {
+  const iso = state.calDay;
+  const { events, blocks } = dayData(iso);
+  const box = $("#day-detail");
+  const parts = [el("h3", {}, parseISO(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" }))];
+
+  if ($("#show-events").checked) {
+    parts.push(el("div", {}, el("h4", {}, "Events"),
+      events.length
+        ? el("ul", { class: "detail-list" }, ...events.map((e) => el("li", { class: "ev-item" },
+            el("strong", {}, e.title),
+            el("span", {}, [fmtRange(e.start, e.end), e.location].filter(Boolean).join(" · ")),
+            ...(e.details ? [el("span", {}, e.details)] : []))))
+        : el("p", { class: "muted" }, "No events this day.")));
+  }
+  if ($("#show-tutors").checked) {
+    parts.push(el("div", {}, el("h4", {}, "Tutors available"),
+      blocks.length
+        ? el("ul", { class: "detail-list" }, ...blocks.map((b) => el("li", { class: "tu-item", style: `--c: ${tutorColor(b.tutor)}` },
+            el("span", { class: "who" }, el("span", { class: "dot" }), b.tutor),
+            el("span", { class: "when" }, fmtRange(b.start, b.end)))))
+        : el("p", { class: "muted" }, "No tutors scheduled this day.")));
+    const open = state.slots.filter((s) => s.date === iso).length;
+    if (open) {
+      parts.push(el("button", {
+        type: "button", class: "btn btn-block",
+        onclick: () => {
+          state.date = iso; state.time = null; renderDates();
+          $("#book").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+        },
+      }, `Book this day · ${open} open`));
+    } else if (blocks.length) {
+      parts.push(el("p", { class: "muted" }, iso < todayISO() ? "This day has passed." : "No open booking times this day yet."));
+    }
+  }
+  box.replaceChildren(...parts);
+}
+
+function renderTutorList() {
+  const list = $("#tutor-list");
+  if (!state.tutors.length) {
+    list.replaceChildren(el("li", { class: "muted" }, "Tutor list coming soon."));
+    return;
+  }
+  const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  list.replaceChildren(...state.tutors.map((t) => {
+    const days = [...new Set(state.availability.filter((b) => b.tutor === t).map((b) => parseISO(b.date).getDay()))].sort();
+    return el("li", { style: `--c: ${tutorColor(t)}` },
+      el("span", { class: "avatar", "aria-hidden": "true" }, initials(t)),
+      el("span", {}, t, el("small", {}, days.length ? `Usually ${days.map((d) => dayNames[d]).join(", ")}` : "No hours posted yet")));
+  }));
+}
+
+function shiftMonth(n) {
+  const m = state.calMonth;
+  state.calMonth = new Date(m.getFullYear(), m.getMonth() + n, 1);
+  renderCalendar();
+}
+
+// ---------- booking ----------
+function showError(msg) {
+  const box = $("#form-error");
+  box.textContent = msg;
+  box.hidden = !msg;
+}
+
+async function submitBooking(e) {
+  e.preventDefault();
+  const f = e.target;
+  const payload = {
+    action: "book",
+    topic: f.elements.topic.value,
+    date: state.date,
+    time: state.time,
+    name: f.elements.name.value.trim(),
+    email: f.elements.email.value.trim(),
+    grade: f.elements.grade.value,
+    notes: f.elements.notes.value.trim(),
+  };
+  if (!payload.topic) return showError("Choose a topic.");
+  if (!payload.date || !payload.time) return showError("Pick a day and a time.");
+  if (!payload.name) return showError("Enter your name.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return showError("Enter a valid email so we can confirm your session.");
+  if (!payload.grade) return showError("Select your grade.");
+  showError("");
+
+  const btn = $("#submit");
+  btn.disabled = true;
+  btn.textContent = "Booking…";
+  try {
+    const res = state.demo
+      ? demoBook(payload)
+      : await (await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) })).json();
+    if (!res.ok) {
+      if (res.error === "slot_taken") {
+        showError("Someone just booked that time. Pick another one.");
+        await loadSlots();
+      } else {
+        showError(res.message || "Booking didn't go through. Try again.");
+      }
+      return;
+    }
+    showConfirmation(res.booking, payload);
+  } catch (err) {
+    console.error(err);
+    showError("Couldn't reach the booking server. Check your connection and try again.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Book session";
+  }
+}
+
+function showConfirmation(b, p) {
+  $("#c-topic").textContent = b.topic;
+  $("#c-when").textContent = fmtWhen(b.date, b.time);
+  $("#c-tutor").textContent = b.tutor;
+  $("#c-id").textContent = b.id;
+  $("#c-msg").textContent = state.demo
+    ? "Demo mode: no email was sent."
+    : `A confirmation was sent to ${p.email}. Your tutor has been notified.`;
+  $("#booking-form").hidden = true;
+  $("#confirmation").hidden = false;
+  $("#confirmation").focus();
+}
+
+function resetForm() {
+  const f = $("#booking-form");
+  f.elements.notes.value = "";
+  state.date = state.time = null;
+  $("#confirmation").hidden = true;
+  f.hidden = false;
+  loadSlots();
+}
+
+// ---------- demo mode (no backend) ----------
+// Same hours as the Availability sheet; Vivas and Cortes Garay haven't posted hours yet.
+const DEMO_TUTORS = ["C/3C Hernandez", "C/2d Lt Merle Cintron", "C/2d Lt Vivas", "C/Maj Cortes Garay"];
+const DEMO_WEEK = {
+  1: [[DEMO_TUTORS[0], "18:00", "19:00"]],
+  2: [[DEMO_TUTORS[1], "12:30", "14:30"]],
+  3: [[DEMO_TUTORS[0], "18:00", "19:00"]],
+  4: [[DEMO_TUTORS[1], "12:30", "14:30"]],
+};
+const DEMO_EVENTS = [
+  { date: "2026-10-28", start: "", end: "", title: "AXIOM 1st Meeting", location: "", details: "Our first club meeting. Everyone is welcome." },
+];
+function demoBooked() {
+  try { return JSON.parse(localStorage.getItem("axiom-demo-bookings") || "[]"); } catch { return []; }
+}
+function demoSlots() {
+  const booked = demoBooked();
+  const slots = [];
+  const now = new Date();
+  for (let i = 1; i <= 14; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    const iso = isoOf(d);
+    const map = new Map();
+    for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) {
+      for (let t = start; addMinutes(t, 30) <= end; t = addMinutes(t, 30)) {
+        if (booked.some((b) => b.date === iso && b.time === t && b.tutor === tutor)) continue;
+        if ((i + parseInt(t)) % 5 === 0) continue; // pretend some times are already taken
+        map.set(t, (map.get(t) || 0) + 1);
+      }
+    }
+    [...map].sort().forEach(([time, tutors]) => slots.push({ date: iso, time, tutors }));
+  }
+  const availability = [];
+  for (let i = 0; i <= 62; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) availability.push({ date: isoOf(d), tutor, start, end });
+  }
+  return { sessionMinutes: 30, slots, topics: DEFAULT_TOPICS, tutors: DEMO_TUTORS, availability, events: DEMO_EVENTS };
+}
+function demoBook(p) {
+  const tutors = [];
+  for (const [tutor, start, end] of DEMO_WEEK[parseISO(p.date).getDay()] || []) {
+    if (p.time >= start && addMinutes(p.time, 30) <= end) tutors.push(tutor);
+  }
+  const taken = demoBooked();
+  const tutor = tutors.find((t) => !taken.some((b) => b.date === p.date && b.time === p.time && b.tutor === t));
+  if (!tutor) return { ok: false, error: "slot_taken" };
+  const booking = { id: "AX-" + Math.random().toString(36).slice(2, 8).toUpperCase(), date: p.date, time: p.time, tutor, topic: p.topic };
+  try { localStorage.setItem("axiom-demo-bookings", JSON.stringify([...taken, booking])); } catch {}
+  return { ok: true, booking };
+}
+
+// ---------- start ----------
+$("#demo-note").hidden = !state.demo;
+$("#topic").addEventListener("change", renderSummary);
+$("#booking-form").addEventListener("submit", submitBooking);
+$("#book-another").addEventListener("click", resetForm);
+$("#cal-prev").addEventListener("click", () => shiftMonth(-1));
+$("#cal-next").addEventListener("click", () => shiftMonth(1));
+$("#show-events").addEventListener("change", renderCalendar);
+$("#show-tutors").addEventListener("change", renderCalendar);
+renderTopics();
+loadSlots();

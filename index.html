@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>AXIOM Math Club</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="Book a free tutoring session with AXIOM Math Club tutors.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&family=Permanent+Marker&family=Caveat:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="wrap header-inner">
+    <a class="brand" href="#top">
+      <img src="logo.png" alt="" width="44" height="44">
+      <span class="brand-name">AXIOM<small>Math Club</small></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="#how">How it works</a>
+      <a href="#calendar">Calendar</a>
+      <a href="#topics">Topics</a>
+      <a class="btn btn-small" href="#book">Book a session</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="formulas" aria-hidden="true">
+      <span class="f1">y − y₁ = m(x − x₁)</span>
+      <span class="f2">a = (v<sub>f</sub> − v<sub>i</sub>) / t</span>
+      <span class="f3">sin θ = opp / hyp</span>
+      <span class="f4">x = (−b ± √(b² − 4ac)) / 2a</span>
+      <span class="f5">d = √((x₂ − x₁)² + (y₂ − y₁)²)</span>
+      <span class="f6">log<sub>b</sub>(xy) = log<sub>b</sub>x + log<sub>b</sub>y</span>
+    </div>
+    <div class="wrap hero-inner">
+      <div class="hero-copy">
+        <p class="eyebrow">Free peer tutoring</p>
+        <h1>Precalc got you stuck?</h1>
+        <p class="marker">Don't do it alone!</p>
+        <p class="lede">Book a one-on-one session with an AXIOM tutor. Pick your topic, choose a time when a tutor is free, and you'll get a confirmation email.</p>
+        <div class="hero-actions">
+          <a class="btn" href="#book">Book a session</a>
+          <span class="meeting">1st club meeting: <strong>Oct. 28</strong></span>
+        </div>
+      </div>
+      <img class="hero-logo" src="logo.png" alt="AXIOM Math Club logo" width="388" height="388">
+    </div>
+  </section>
+
+  <section id="how" class="wrap how">
+    <h2>How it works</h2>
+    <ol class="steps">
+      <li><strong>Choose a topic</strong><span>Tell us what you're working on so the right tutor shows up prepared.</span></li>
+      <li><strong>Pick an open time</strong><span>You only see times when at least one tutor is free.</span></li>
+      <li><strong>Get confirmed</strong><span>You and your tutor both get an email with the details.</span></li>
+    </ol>
+  </section>
+
+  <section id="calendar" class="calendar-section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Club calendar</h2>
+        <p>Upcoming events and when each tutor is available. Tap a day for details.</p>
+      </div>
+      <div class="cal-layout">
+        <div class="panel cal">
+          <div class="cal-toolbar">
+            <button type="button" class="icon-btn" id="cal-prev" aria-label="Previous month">&#8249;</button>
+            <h3 id="cal-title" aria-live="polite"></h3>
+            <button type="button" class="icon-btn" id="cal-next" aria-label="Next month">&#8250;</button>
+          </div>
+          <div class="cal-filters" role="group" aria-label="Show on calendar">
+            <label class="toggle"><input type="checkbox" id="show-events" checked> <span class="swatch ev"></span>Events</label>
+            <label class="toggle"><input type="checkbox" id="show-tutors" checked> <span class="swatch tu"></span>Tutor availability</label>
+          </div>
+          <div class="cal-scroll">
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+        </div>
+        <div class="cal-side">
+          <aside class="panel day-detail" id="day-detail" aria-live="polite">
+            <p class="muted">Loading calendar…</p>
+          </aside>
+          <div class="panel tutors">
+            <h3>Our tutors</h3>
+            <ul id="tutor-list" class="tutor-list"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section id="book" class="book">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Book a session</h2>
+        <p>Sessions last <span id="session-length">30</span> minutes.</p>
+      </div>
+
+      <p id="demo-note" class="notice" hidden>Demo mode: these are sample times. Bookings stay in this browser and no emails are sent.</p>
+
+      <form id="booking-form" class="booking" novalidate>
+        <div class="panel picker">
+          <div class="field">
+            <label for="topic" class="label"><span class="n">1</span>Topic</label>
+            <select id="topic" name="topic" required>
+              <option value="">Choose a topic…</option>
+            </select>
+          </div>
+          <div class="field">
+            <span class="label" id="date-label"><span class="n">2</span>Day</span>
+            <div id="dates" class="dates" role="group" aria-labelledby="date-label">
+              <p class="muted">Loading open times…</p>
+            </div>
+          </div>
+          <div class="field">
+            <span class="label" id="time-label"><span class="n">3</span>Time</span>
+            <div id="times" class="times" role="group" aria-labelledby="time-label">
+              <p class="muted">Pick a day first.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel details">
+          <span class="label"><span class="n">4</span>Your details</span>
+          <div class="field">
+            <label for="name">Full name</label>
+            <input id="name" name="name" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="email">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="grade">Grade</label>
+            <select id="grade" name="grade" required>
+              <option value="">Select…</option>
+              <option>9th</option>
+              <option>10th</option>
+              <option>11th</option>
+              <option>12th</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="notes">What do you need help with? <span class="opt">Optional</span></label>
+            <textarea id="notes" name="notes" rows="3" placeholder="e.g. Homework 4.3, problems 12–20 on inverse trig"></textarea>
+          </div>
+
+          <dl id="summary" class="summary">
+            <div><dt>Topic</dt><dd data-k="topic">—</dd></div>
+            <div><dt>When</dt><dd data-k="when">—</dd></div>
+          </dl>
+
+          <p id="form-error" class="error" role="alert" hidden></p>
+          <button type="submit" class="btn btn-block" id="submit">Book session</button>
+        </div>
+      </form>
+
+      <div id="confirmation" class="panel confirmation" tabindex="-1" hidden>
+        <img src="logo.png" alt="" width="72" height="72">
+        <h3>You're booked!</h3>
+        <dl class="summary">
+          <div><dt>Topic</dt><dd id="c-topic"></dd></div>
+          <div><dt>When</dt><dd id="c-when"></dd></div>
+          <div><dt>Tutor</dt><dd id="c-tutor"></dd></div>
+          <div><dt>Booking ID</dt><dd id="c-id" class="mono"></dd></div>
+        </dl>
+        <p id="c-msg" class="muted"></p>
+        <button type="button" class="btn btn-ghost" id="book-another">Book another session</button>
+      </div>
+    </div>
+  </section>
+
+  <section id="topics" class="wrap topics">
+    <h2>What we can help with</h2>
+    <div id="topic-list" class="topic-groups"></div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <img src="logo.png" alt="" width="40" height="40">
+    <p>AXIOM Math Club · Peer tutoring by students, for students.</p>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>
