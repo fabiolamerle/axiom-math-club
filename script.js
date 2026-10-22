@@ -539,4 +539,4 @@ $("#cal-next")?.addEventListener("click", () => shiftMonth(1));
 $("#show-events")?.addEventListener("change", renderCalendar);
 $("#show-tutors")?.addEventListener("change", renderCalendar);
 renderTopics();
-loadSlots();
+if ($("#dates, #cal-grid, #topic-list, #apply-topics")) loadSlots();

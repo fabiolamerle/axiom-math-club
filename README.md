@@ -15,6 +15,7 @@ Mientras no conectes el backend, el sitio funciona en **modo demo** (horarios de
 | Archivo | Qué es |
 |---|---|
 | `index.html` (Home), `about.html` (misión), `book.html` (reservar), `calendar.html` (calendario), `tutor.html` (ser tutor) | Las 5 páginas del sitio |
+| `admin.html`, `admin.js` | Panel de admin con estadísticas (protegido con contraseña) |
 | `styles.css`, `script.js`, `logo.png` | Diseño, lógica y logo, compartidos por todas las páginas |
 | `Code.gs` | Backend en Google Apps Script: calcula horarios libres, guarda reservas y envía los emails |
 
@@ -86,6 +87,13 @@ Cualquier hosting estático sirve. Lo más fácil:
 La sección **Want to be a tutor?** del sitio guarda cada aplicación en la pestaña **Tutor Applications** y envía un email a la cuenta dueña del sistema (y a `alsoNotify`). El aspirante recibe una confirmación. Usa la columna `Status` para llevar el control (New, Contacted, Accepted…). Para aceptar a alguien como tutor, añade sus filas en **Availability**.
 
 El QR del sitio está en `qr-code.png`.
+
+## Panel de admin
+`admin.html` (enlace "Admin" al pie de cada página) muestra: sesiones completadas, horas por tutor, cadetes ayudados, temas más pedidos, sesiones por semana, en persona vs online, solicitudes por AS year y estado de las solicitudes. Se puede filtrar por todo el tiempo, este semestre, este mes o los últimos 30 días, y descargar las horas de cada tutor en CSV.
+
+- La contraseña se guarda en Apps Script, no en GitHub: **Configuración del proyecto ⚙️ → Propiedades de la secuencia de comandos → Agregar propiedad**, nombre `ADMIN_PASSWORD`, valor la contraseña.
+- El panel nunca recibe nombres, emails ni teléfonos de los cadetes; solo los datos para las estadísticas.
+- Después de 10 contraseñas incorrectas se bloquea por 10 minutos.
 
 ## Uso diario
 - **Ver reservas**: pestaña `Bookings` (columna `Status`: Pending, Accepted o Declined).

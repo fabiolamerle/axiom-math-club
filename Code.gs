@@ -129,6 +129,7 @@ function doPost(e) {
     return json_({ ok: false, error: 'bad_request', message: 'Invalid request.' });
   }
   if (p.action === 'apply') return json_(handleApplication_(p));
+  if (p.action === 'stats') return json_(adminStats_(p.password));
   const clean = v => String(v == null ? '' : v).trim().slice(0, 500);
   const b = {
     name: clean(p.name), email: clean(p.email), phone: clean(p.phone), grade: clean(p.grade),
@@ -184,6 +185,42 @@ function doPost(e) {
     console.error('Email failed: ' + err); // the request is saved even if email fails
   }
   return json_({ ok: true, booking: { id: booking.id, date: booking.date, time: booking.time, duration: booking.duration, tutor: booking.tutor, topic: booking.topic, status: 'Pending' } });
+}
+
+// ---------- admin dashboard ----------
+// The password lives in Script Properties (Project Settings), never in this public file.
+function adminStats_(password) {
+  const cache = CacheService.getScriptCache();
+  const fails = Number(cache.get('admin_fails') || 0);
+  if (fails >= 10) return { ok: false, error: 'locked', message: 'Too many wrong passwords. Try again in 10 minutes.' };
+  const real = PropertiesService.getScriptProperties().getProperty('ADMIN_PASSWORD');
+  if (!real) return { ok: false, error: 'no_password', message: 'No admin password is set yet. Add ADMIN_PASSWORD in Apps Script → Project Settings → Script Properties.' };
+  if (String(password || '') !== real) {
+    cache.put('admin_fails', String(fails + 1), 600);
+    return { ok: false, error: 'wrong_password', message: 'Wrong password.' };
+  }
+
+  const ss = SpreadsheetApp.getActive();
+  const tz = ss.getSpreadsheetTimeZone();
+  const anon = email => Utilities.base64EncodeWebSafe(Utilities.computeDigest(
+    Utilities.DigestAlgorithm.SHA_256, String(email || '').trim().toLowerCase())).slice(0, 12);
+  // Only what the stats need: no student names, emails or phone numbers leave the sheet.
+  const bookings = readRows_(ss, 'Bookings').filter(r => r['Booking ID']).map(r => ({
+    date: cellDate_(r['Date'], tz), time: cellTime_(r['Time'], tz),
+    duration: Number(r['Duration']) || CONFIG.sessionMinutes,
+    tutor: String(r['Tutor'] || '').trim(), topic: String(r['Topic'] || '').trim(),
+    format: String(r['Format'] || 'In person').trim(), status: String(r['Status'] || '').trim(),
+    year: String(r['Grade'] || '').trim(), student: anon(r['Student Email']),
+  }));
+  let applications = { total: 0, fresh: 0 };
+  if (ss.getSheetByName('Tutor Applications')) {
+    const apps = readRows_(ss, 'Tutor Applications').filter(r => r['Name']);
+    applications = { total: apps.length, fresh: apps.filter(r => String(r['Status']).toLowerCase() === 'new').length };
+  }
+  return {
+    ok: true, now: Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd HH:mm'),
+    tutors: tutorNames_(), bookings: bookings, applications: applications,
+  };
 }
 
 // ---------- tutor applications ----------
