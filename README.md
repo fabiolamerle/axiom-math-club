@@ -38,7 +38,7 @@ En la pestaña **Availability**, una fila por bloque de tiempo:
 | C/Maj Cortes Garay | Jorge.cortes4@upr.edu | | | |
 
 - **Day**: un día de la semana (inglés o español) se repite cada semana; una fecha (`2026-10-28` o `10/28/2026`) es solo ese día.
-- El bloque se divide en sesiones de 30 minutos. Si dos tutores coinciden, el estudiante ve "2 tutors free" y se asigna al primero libre.
+- El estudiante escoge la duración (30 min, 1 hora o 2 horas) y ve cada hora con el nombre del tutor libre. Solo salen las horas en que ese tutor está libre toda la sesión.
 - Un tutor puede tener varias filas (una por cada día o bloque).
 - El nombre del tutor se escribe igual en todas sus filas; así se le asigna el mismo color en el calendario.
 - Los emails **no** se muestran en el sitio; solo se usan para enviar las notificaciones.
@@ -69,7 +69,7 @@ Cualquier hosting estático sirve. Lo más fácil:
 - **GitHub Pages**: sube los archivos a un repositorio y activa Pages en *Settings → Pages*.
 
 ## Cómo funciona una reserva
-1. El estudiante escoge tema, día y hora, y pone nombre, email, teléfono y grado.
+1. El estudiante escoge tema, duración, día, hora con tutor, si es In person u Online, y pone nombre, email, teléfono y AS year.
 2. La reserva queda como **Pending** en `Bookings` y esa hora ya no se le ofrece a nadie más.
 3. El tutor recibe un email con los datos del estudiante y los botones **Accept** y **Decline**. Al tocar uno se abre una página para confirmar (así los filtros de seguridad del correo no pueden contestar solos).
 4. El estudiante recibe un email: **Confirmed** si se aceptó, o **Not available** con un enlace para escoger otra hora si se rechazó. Una sesión rechazada libera la hora.
