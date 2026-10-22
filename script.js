@@ -1,6 +1,6 @@
 // Paste your Google Apps Script web app URL here (see README.md).
 // While it is empty, the site runs in demo mode with sample times.
-const API_URL = "";
+const API_URL = "https://script.google.com/macros/s/AKfycbzjTCzVQWR3kC8WMNvHb5nbbAFq3l3KAmn8gNr3f5rnzU9wkznv-5OSOH7cJSOppnGd/exec";
 
 const DEFAULT_TOPICS = [
   ["Precalculus", "Functions & Graphs"],
