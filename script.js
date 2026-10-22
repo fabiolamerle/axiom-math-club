@@ -325,7 +325,7 @@ async function submitBooking(e) {
   if (!payload.name) return showError("Enter your name.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return showError("Enter a valid email so we can confirm your session.");
   if (payload.phone.replace(/\D/g, "").length < 7) return showError("Enter a phone number so your tutor can reach you.");
-  if (!payload.grade) return showError("Select your grade.");
+  if (!payload.grade) return showError("Select your AS year.");
   showError("");
 
   const btn = $("#submit");

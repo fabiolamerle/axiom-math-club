@@ -126,7 +126,7 @@ function doPost(e) {
     name: clean(p.name), email: clean(p.email), phone: clean(p.phone), grade: clean(p.grade),
     topic: clean(p.topic), format: clean(p.format), date: clean(p.date), time: clean(p.time), notes: clean(p.notes),
   };
-  if (!b.name || !b.grade) return json_({ ok: false, error: 'invalid', message: 'Fill in your name and grade.' });
+  if (!b.name || !b.grade) return json_({ ok: false, error: 'invalid', message: 'Fill in your name and AS year.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)) return json_({ ok: false, error: 'invalid', message: 'Enter a valid email.' });
   if (b.phone.replace(/\D/g, '').length < 7) return json_({ ok: false, error: 'invalid', message: 'Enter a valid phone number.' });
   if (!topics_().some(t => t[1] === b.topic)) return json_({ ok: false, error: 'invalid', message: 'Choose a topic from the list.' });
