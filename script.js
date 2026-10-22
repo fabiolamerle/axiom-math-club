@@ -417,14 +417,14 @@ function resetForm() {
 }
 
 // ---------- demo mode (no backend) ----------
-// Same hours as the Availability sheet; Cortes Garay hasn't posted hours yet.
+// Same hours as the Availability sheet.
 const DEMO_TUTORS = ["C/3C Hernandez", "C/2d Lt Merle Cintron", "C/2d Lt Vivas", "C/Maj Cortes Garay"];
 const DEMO_WEEK = {
   1: [[DEMO_TUTORS[2], "16:30", "19:30"], [DEMO_TUTORS[0], "18:00", "19:00"]],
-  2: [[DEMO_TUTORS[1], "12:30", "14:30"], [DEMO_TUTORS[2], "16:30", "19:30"]],
+  2: [[DEMO_TUTORS[1], "12:30", "14:30"], [DEMO_TUTORS[3], "15:00", "18:00"], [DEMO_TUTORS[2], "16:30", "19:30"]],
   3: [[DEMO_TUTORS[2], "16:30", "19:30"], [DEMO_TUTORS[0], "18:00", "19:00"]],
-  4: [[DEMO_TUTORS[1], "12:30", "14:30"], [DEMO_TUTORS[2], "16:30", "19:30"]],
-  5: [[DEMO_TUTORS[2], "16:30", "19:30"]],
+  4: [[DEMO_TUTORS[1], "12:30", "14:30"], [DEMO_TUTORS[3], "15:00", "18:00"], [DEMO_TUTORS[2], "16:30", "19:30"]],
+  5: [[DEMO_TUTORS[3], "14:00", "17:00"], [DEMO_TUTORS[2], "16:30", "19:30"]],
 };
 const DEMO_EVENTS = [
   { date: "2026-10-28", start: "", end: "", title: "AXIOM 1st Meeting", location: "", details: "Our first club meeting. Everyone is welcome." },

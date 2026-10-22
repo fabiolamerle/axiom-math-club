@@ -67,8 +67,9 @@ function setup() {
     ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Wednesday', '16:30', '19:30', ''],
     ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Thursday', '16:30', '19:30', ''],
     ['C/2d Lt Vivas', 'Julian.vivas@upr.edu', 'Friday', '16:30', '19:30', ''],
-    // Hours not set yet: fill in Day / Start / End.
-    ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', '', '', '', ''],
+    ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', 'Tuesday', '15:00', '18:00', ''],
+    ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', 'Thursday', '15:00', '18:00', ''],
+    ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', 'Friday', '14:00', '17:00', ''],
   ]);
   ensureSheet_(ss, 'Events', ['Date', 'Start', 'End', 'Title', 'Location', 'Details'], [
     ['2026-10-28', '', '', 'AXIOM 1st Meeting', '', 'Our first club meeting. Everyone is welcome.'],

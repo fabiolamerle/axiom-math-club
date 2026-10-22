@@ -22,7 +22,7 @@ Mientras no conectes el backend, el sitio funciona en **modo demo** (horarios de
 ### 1. Crear la hoja y el backend
 1. Crea una Google Sheet nueva con la cuenta de Google que va a manejar el sistema (puede ser un Gmail personal). Los emails a tutores y estudiantes salen desde esa cuenta, con el nombre "AXIOM Math Club".
 2. Menú **Extensiones → Apps Script**. Borra lo que haya y pega todo el contenido de `Code.gs`. Guarda.
-3. Arriba, selecciona la función `setup` y presiona **Ejecutar**. Acepta los permisos (Google avisará que la app no está verificada: *Configuración avanzada → Ir a…*). Esto crea las pestañas `Availability`, `Topics`, `Events` y `Bookings`. `Availability` ya viene con los cuatro tutores, sus emails y los horarios de Hernandez (lun y mié, 18:00–19:00) y Merle Cintron (mar y jue, 12:30–14:30) y Vivas (lun a vie, 16:30–19:30). Falta el de Cortes Garay: llena `Day`, `Start` y `End` en su fila.
+3. Arriba, selecciona la función `setup` y presiona **Ejecutar**. Acepta los permisos (Google avisará que la app no está verificada: *Configuración avanzada → Ir a…*). Esto crea las pestañas `Availability`, `Topics`, `Events` y `Bookings`. `Availability` ya viene con los cuatro tutores, sus emails y los horarios de Hernandez (lun y mié, 18:00–19:00) y Merle Cintron (mar y jue, 12:30–14:30) Vivas (lun a vie, 16:30–19:30) y Cortes Garay (mar y jue 15:00–18:00, vie 14:00–17:00).
 
 ### 2. Poner la disponibilidad de los tutores
 En la pestaña **Availability**, una fila por bloque de tiempo:
@@ -35,7 +35,9 @@ En la pestaña **Availability**, una fila por bloque de tiempo:
 | C/2d Lt Merle Cintron | Fabiola.merle@upr.edu | Thursday | 12:30 | 14:30 |
 | C/2d Lt Vivas | Julian.vivas@upr.edu | Monday | 16:30 | 19:30 |
 | C/2d Lt Vivas | Julian.vivas@upr.edu | Tuesday … Friday (una fila por día) | 16:30 | 19:30 |
-| C/Maj Cortes Garay | Jorge.cortes4@upr.edu | | | |
+| C/Maj Cortes Garay | Jorge.cortes4@upr.edu | Tuesday | 15:00 | 18:00 |
+| C/Maj Cortes Garay | Jorge.cortes4@upr.edu | Thursday | 15:00 | 18:00 |
+| C/Maj Cortes Garay | Jorge.cortes4@upr.edu | Friday | 14:00 | 17:00 |
 
 - **Day**: un día de la semana (inglés o español) se repite cada semana; una fecha (`2026-10-28` o `10/28/2026`) es solo ese día.
 - El estudiante escoge la duración (30 min, 1 hora o 2 horas) y ve cada hora con el nombre del tutor libre. Solo salen las horas en que ese tutor está libre toda la sesión.
