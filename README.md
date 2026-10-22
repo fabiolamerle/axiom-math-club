@@ -4,7 +4,7 @@ Sitio donde los estudiantes reservan sesiones con los tutores de AXIOM.
 
 - **Calendario del club**: muestra los eventos futuros y la disponibilidad de cada tutor (un color por tutor). Al tocar un día se ven los detalles y un botón para reservar ese día.
 - El estudiante escoge **tema** (lista desplegable), **día** y **hora**. Solo ve horas en que algún tutor está disponible.
-- El estudiante pone su **email y teléfono**. Al pedir la sesión, **el tutor recibe un email con botones Accept / Decline**.
+- El estudiante escoge si la sesión es **In person** u **Online**, y pone su **email y teléfono**. Al pedir la sesión, **el tutor recibe un email con botones Accept / Decline**.
 - Cuando el tutor contesta, **el estudiante recibe un email** diciendo si fue aceptada o no. Si se rechaza, la hora queda libre otra vez.
 - Todo se guarda en una **Google Sheet**: ahí los tutores ponen su disponibilidad y ven las reservas.
 
@@ -42,6 +42,7 @@ En la pestaña **Availability**, una fila por bloque de tiempo:
 - Un tutor puede tener varias filas (una por cada día o bloque).
 - El nombre del tutor se escribe igual en todas sus filas; así se le asigna el mismo color en el calendario.
 - Los emails **no** se muestran en el sitio; solo se usan para enviar las notificaciones.
+- **Meeting Link** (columna F): el link fijo de Zoom o Teams de cada tutor. Basta ponerlo en una fila del tutor. Cuando el tutor acepta una sesión **Online**, el cadete recibe ese link en el email de confirmación. Si el tutor no tiene link, el email dice que el tutor se lo enviará. El link no aparece en el sitio.
 
 ### 2b. Eventos del calendario
 En la pestaña **Events**, una fila por evento:
@@ -72,6 +73,11 @@ Cualquier hosting estático sirve. Lo más fácil:
 2. La reserva queda como **Pending** en `Bookings` y esa hora ya no se le ofrece a nadie más.
 3. El tutor recibe un email con los datos del estudiante y los botones **Accept** y **Decline**. Al tocar uno se abre una página para confirmar (así los filtros de seguridad del correo no pueden contestar solos).
 4. El estudiante recibe un email: **Confirmed** si se aceptó, o **Not available** con un enlace para escoger otra hora si se rechazó. Una sesión rechazada libera la hora.
+
+## Actualizar el código (cuando cambie `Code.gs`)
+1. En Apps Script, borra todo, pega el `Code.gs` nuevo y guarda.
+2. Si hay columnas nuevas, selecciona `setup` y presiona **Ejecutar** (añade las columnas que falten sin borrar nada).
+3. **Implementar → Gestionar implementaciones →** lápiz ✏️ **→ Versión: Nueva versión → Implementar**. La URL `/exec` sigue igual.
 
 ## Uso diario
 - **Ver reservas**: pestaña `Bookings` (columna `Status`: Pending, Accepted o Declined).

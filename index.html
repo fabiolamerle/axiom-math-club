@@ -135,6 +135,19 @@
 
         <div class="panel details">
           <span class="label"><span class="n">4</span>Your details</span>
+          <fieldset class="field format-field">
+            <legend>Session type</legend>
+            <div class="format-options">
+              <label class="format-option">
+                <input type="radio" name="format" value="In person" required>
+                <span><strong>In person</strong><small>Your tutor confirms where to meet</small></span>
+              </label>
+              <label class="format-option">
+                <input type="radio" name="format" value="Online">
+                <span><strong>Online</strong><small>You get the meeting link by email</small></span>
+              </label>
+            </div>
+          </fieldset>
           <div class="field">
             <label for="name">Full name</label>
             <input id="name" name="name" autocomplete="name" required>
@@ -166,6 +179,7 @@
           <dl id="summary" class="summary">
             <div><dt>Topic</dt><dd data-k="topic">—</dd></div>
             <div><dt>When</dt><dd data-k="when">—</dd></div>
+            <div><dt>Session</dt><dd data-k="format">—</dd></div>
           </dl>
 
           <p id="form-error" class="error" role="alert" hidden></p>
@@ -179,6 +193,7 @@
         <dl class="summary">
           <div><dt>Topic</dt><dd id="c-topic"></dd></div>
           <div><dt>When</dt><dd id="c-when"></dd></div>
+          <div><dt>Session</dt><dd id="c-format"></dd></div>
           <div><dt>Tutor</dt><dd id="c-tutor"></dd></div>
           <div><dt>Booking ID</dt><dd id="c-id" class="mono"></dd></div>
         </dl>

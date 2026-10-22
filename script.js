@@ -174,6 +174,7 @@ function renderTimes() {
 
 function renderSummary() {
   $('#summary [data-k="topic"]').textContent = $("#topic").value || "—";
+  $('#summary [data-k="format"]').textContent = $("#booking-form").elements.format.value || "—";
   $('#summary [data-k="when"]').textContent = state.date && state.time ? fmtWhen(state.date, state.time) : "—";
 }
 
@@ -314,11 +315,13 @@ async function submitBooking(e) {
     name: f.elements.name.value.trim(),
     email: f.elements.email.value.trim(),
     phone: f.elements.phone.value.trim(),
+    format: f.elements.format.value,
     grade: f.elements.grade.value,
     notes: f.elements.notes.value.trim(),
   };
   if (!payload.topic) return showError("Choose a topic.");
   if (!payload.date || !payload.time) return showError("Pick a day and a time.");
+  if (!payload.format) return showError("Choose In person or Online.");
   if (!payload.name) return showError("Enter your name.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return showError("Enter a valid email so we can confirm your session.");
   if (payload.phone.replace(/\D/g, "").length < 7) return showError("Enter a phone number so your tutor can reach you.");
@@ -354,6 +357,7 @@ async function submitBooking(e) {
 function showConfirmation(b, p) {
   $("#c-topic").textContent = b.topic;
   $("#c-when").textContent = fmtWhen(b.date, b.time);
+  $("#c-format").textContent = p.format;
   $("#c-tutor").textContent = b.tutor;
   $("#c-id").textContent = b.id;
   $("#c-msg").textContent = state.demo
@@ -429,6 +433,7 @@ function demoBook(p) {
 // ---------- start ----------
 $("#demo-note").hidden = !state.demo;
 $("#topic").addEventListener("change", renderSummary);
+document.querySelectorAll('input[name="format"]').forEach((r) => r.addEventListener("change", renderSummary));
 $("#booking-form").addEventListener("submit", submitBooking);
 $("#book-another").addEventListener("click", resetForm);
 $("#cal-prev").addEventListener("click", () => shiftMonth(-1));
