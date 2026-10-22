@@ -106,7 +106,7 @@
     <div class="wrap">
       <div class="section-head">
         <h2>Book a session</h2>
-        <p>Sessions last <span id="session-length">30</span> minutes.</p>
+        <p>Pick how long you need, then a time and tutor.</p>
       </div>
 
       <p id="demo-note" class="notice" hidden>Demo mode: these are sample times. Bookings stay in this browser and no emails are sent.</p>
@@ -120,13 +120,17 @@
             </select>
           </div>
           <div class="field">
-            <span class="label" id="date-label"><span class="n">2</span>Day</span>
+            <span class="label" id="length-label"><span class="n">2</span>Length</span>
+            <div id="durations" class="durations" role="group" aria-labelledby="length-label"></div>
+          </div>
+          <div class="field">
+            <span class="label" id="date-label"><span class="n">3</span>Day</span>
             <div id="dates" class="dates" role="group" aria-labelledby="date-label">
               <p class="muted">Loading open times…</p>
             </div>
           </div>
           <div class="field">
-            <span class="label" id="time-label"><span class="n">3</span>Time</span>
+            <span class="label" id="time-label"><span class="n">4</span>Time &amp; tutor</span>
             <div id="times" class="times" role="group" aria-labelledby="time-label">
               <p class="muted">Pick a day first.</p>
             </div>
@@ -134,7 +138,7 @@
         </div>
 
         <div class="panel details">
-          <span class="label"><span class="n">4</span>Your details</span>
+          <span class="label"><span class="n">5</span>Your details</span>
           <fieldset class="field format-field">
             <legend>Session type</legend>
             <div class="format-options">
@@ -179,6 +183,7 @@
           <dl id="summary" class="summary">
             <div><dt>Topic</dt><dd data-k="topic">—</dd></div>
             <div><dt>When</dt><dd data-k="when">—</dd></div>
+            <div><dt>Tutor</dt><dd data-k="tutor">—</dd></div>
             <div><dt>Session</dt><dd data-k="format">—</dd></div>
           </dl>
 

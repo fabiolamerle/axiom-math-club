@@ -282,9 +282,19 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .date-btn .day { font: 600 1.6rem/1 var(--font-display); }
 .date-btn .mon { font-size: 0.8rem; color: var(--muted); }
 .date-btn .count { font-size: 0.72rem; color: var(--accent); font-weight: 600; }
-.times { display: grid; grid-template-columns: repeat(auto-fill, minmax(118px, 1fr)); gap: 10px; }
+.times { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.durations { display: flex; flex-wrap: wrap; gap: 10px; }
+.dur-btn {
+  flex: 1 1 0; min-width: 90px; padding: 12px 10px; border-radius: 8px; cursor: pointer;
+  background: var(--bg); color: var(--fg); border: 1px solid var(--line); font: 600 1rem/1 var(--font-display);
+  letter-spacing: 0.04em; text-transform: uppercase;
+}
+.dur-btn:hover { border-color: var(--accent); }
+.dur-btn[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: var(--navy-fg); }
+.time-btn .who { display: flex; align-items: center; justify-content: center; gap: 5px; text-align: center; }
+.time-btn .who .dot { width: 8px; height: 8px; }
 .time-btn {
-  padding: 12px 8px; border-radius: 8px; cursor: pointer; font: 500 0.95rem/1.2 var(--font-mono);
+  padding: 10px 6px; border-radius: 8px; cursor: pointer; font: 500 0.95rem/1.2 var(--font-mono);
   background: var(--bg); color: var(--fg); border: 1px solid var(--line); display: grid; gap: 3px; justify-items: center;
 }
 .time-btn small { font: 400 0.75rem/1 var(--font-body); color: var(--muted); }

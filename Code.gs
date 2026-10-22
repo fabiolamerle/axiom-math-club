@@ -13,7 +13,8 @@
  */
 const CONFIG = {
   clubName: 'AXIOM Math Club',
-  sessionMinutes: 30,   // length of each session
+  sessionMinutes: 30,   // time grid: sessions start on the half hour
+  durations: [30, 60, 120], // session lengths students can pick (minutes)
   daysAhead: 21,        // how far ahead students can book
   calendarDays: 62,     // how far ahead the calendar shows tutor availability
   minNoticeHours: 12,   // students can't book closer than this to the session
@@ -25,7 +26,7 @@ const CONFIG = {
 const FORMATS = ['In person', 'Online'];
 
 const BOOKING_HEADERS = ['Created', 'Booking ID', 'Status', 'Date', 'Time', 'Tutor', 'Tutor Email',
-  'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Format', 'Notes', 'Responded', 'Token'];
+  'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Format', 'Duration', 'Notes', 'Responded', 'Token'];
 
 const DEFAULT_TOPICS = [
   ['Precalculus', 'Functions & Graphs'],
@@ -102,11 +103,11 @@ function doGet(e) {
   const q = (e && e.parameter) || {};
   if (q.action === 'respond') return responsePage_(q.id, q.token, q.decision);
   try {
-    const slots = openSlots_().map(s => ({ date: s.date, time: s.time, tutors: s.tutors.length }));
+    const free = freeSlots_().map(s => ({ date: s.date, time: s.time, tutor: s.tutor }));
     const blocks = availabilityBlocks_(CONFIG.calendarDays)
       .map(b => ({ date: b.date, tutor: b.tutor, start: fromMinutes_(b.start), end: fromMinutes_(b.end) }));
     return json_({
-      sessionMinutes: CONFIG.sessionMinutes, slots: slots, topics: topics_(),
+      sessionMinutes: CONFIG.sessionMinutes, durations: CONFIG.durations, free: free, topics: topics_(),
       tutors: tutorNames_(), availability: blocks, events: events_(),
     });
   } catch (err) {
@@ -125,30 +126,41 @@ function doPost(e) {
   const b = {
     name: clean(p.name), email: clean(p.email), phone: clean(p.phone), grade: clean(p.grade),
     topic: clean(p.topic), format: clean(p.format), date: clean(p.date), time: clean(p.time), notes: clean(p.notes),
+    tutor: clean(p.tutor), duration: Number(p.duration),
   };
   if (!b.name || !b.grade) return json_({ ok: false, error: 'invalid', message: 'Fill in your name and AS year.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)) return json_({ ok: false, error: 'invalid', message: 'Enter a valid email.' });
   if (b.phone.replace(/\D/g, '').length < 7) return json_({ ok: false, error: 'invalid', message: 'Enter a valid phone number.' });
   if (!topics_().some(t => t[1] === b.topic)) return json_({ ok: false, error: 'invalid', message: 'Choose a topic from the list.' });
   if (FORMATS.indexOf(b.format) < 0) return json_({ ok: false, error: 'invalid', message: 'Choose In person or Online.' });
+  if (CONFIG.durations.indexOf(b.duration) < 0) return json_({ ok: false, error: 'invalid', message: 'Choose how long the session is.' });
+  if (!b.tutor) return json_({ ok: false, error: 'invalid', message: 'Pick a time with a tutor.' });
 
   const lock = LockService.getScriptLock();
   lock.waitLock(15000);
   let booking;
   try {
-    const slot = openSlots_().find(s => s.date === b.date && s.time === b.time);
-    if (!slot) return json_({ ok: false, error: 'slot_taken' });
-    const tutor = slot.tutors[0];
+    // The tutor must be free for every half hour the session covers.
+    const free = freeSlots_();
+    const start = toMinutes_(b.time);
+    let tutor = null;
+    for (let m = start; start != null && m < start + b.duration; m += CONFIG.sessionMinutes) {
+      const hit = free.find(s => s.date === b.date && s.time === fromMinutes_(m) && s.tutor === b.tutor);
+      if (!hit) { tutor = null; break; }
+      if (!tutor) tutor = { name: hit.tutor, email: hit.email };
+    }
+    if (!tutor) return json_({ ok: false, error: 'slot_taken' });
     booking = {
       id: 'AX-' + Utilities.getUuid().slice(0, 6).toUpperCase(),
       token: Utilities.getUuid().replace(/-/g, ''),
       date: b.date, time: b.time, tutor: tutor.name, tutorEmail: tutor.email, topic: b.topic, format: b.format,
+      duration: b.duration,
     };
     const rec = {
       'Created': new Date().toISOString(), 'Booking ID': booking.id, 'Status': 'Pending',
       'Date': b.date, 'Time': b.time, 'Tutor': tutor.name, 'Tutor Email': tutor.email,
       'Student': b.name, 'Student Email': b.email, 'Student Phone': b.phone, 'Grade': b.grade,
-      'Topic': b.topic, 'Format': b.format, 'Notes': b.notes, 'Responded': '', 'Token': booking.token,
+      'Topic': b.topic, 'Format': b.format, 'Duration': String(b.duration), 'Notes': b.notes, 'Responded': '', 'Token': booking.token,
     };
     const sh = SpreadsheetApp.getActive().getSheetByName('Bookings');
     ensureHeaders_(sh, BOOKING_HEADERS);
@@ -164,7 +176,7 @@ function doPost(e) {
   } catch (err) {
     console.error('Email failed: ' + err); // the request is saved even if email fails
   }
-  return json_({ ok: true, booking: { id: booking.id, date: booking.date, time: booking.time, tutor: booking.tutor, topic: booking.topic, status: 'Pending' } });
+  return json_({ ok: true, booking: { id: booking.id, date: booking.date, time: booking.time, duration: booking.duration, tutor: booking.tutor, topic: booking.topic, status: 'Pending' } });
 }
 
 // ---------- tutor accepts / declines ----------
@@ -250,7 +262,8 @@ function findBooking_(id) {
 }
 
 // ---------- availability ----------
-function openSlots_() {
+/** Every free half hour per tutor: {date, time, tutor, email}. Bookings block each half hour they cover. */
+function freeSlots_() {
   const ss = SpreadsheetApp.getActive();
   const tz = ss.getSpreadsheetTimeZone();
   const step = CONFIG.sessionMinutes;
@@ -259,22 +272,27 @@ function openSlots_() {
   readRows_(ss, 'Bookings').forEach(r => {
     const status = String(r['Status']).toLowerCase();
     if (status.indexOf('cancel') === 0 || status.indexOf('declin') === 0) return; // slot is free again
-    booked[[String(r['Tutor']).trim(), cellDate_(r['Date'], tz), cellTime_(r['Time'], tz)].join('|')] = true;
+    const start = toMinutes_(cellTime_(r['Time'], tz));
+    if (start == null) return;
+    const len = Number(r['Duration']) || step;
+    for (let m = start; m < start + len; m += step) {
+      booked[[String(r['Tutor']).trim(), cellDate_(r['Date'], tz), fromMinutes_(m)].join('|')] = true;
+    }
   });
 
   const cutoff = Utilities.formatDate(new Date(Date.now() + CONFIG.minNoticeHours * 3600e3), tz, 'yyyy-MM-dd HH:mm');
-  const map = {};
+  const out = [];
+  const seen = {};
   availabilityBlocks_(CONFIG.daysAhead).forEach(b => {
     for (let m = b.start; m + step <= b.end; m += step) {
       const time = fromMinutes_(m);
-      if (b.date + ' ' + time < cutoff) continue;
-      if (booked[[b.tutor, b.date, time].join('|')]) continue;
-      const k = b.date + '|' + time;
-      if (!map[k]) map[k] = { date: b.date, time: time, tutors: [] };
-      if (!map[k].tutors.some(t => t.name === b.tutor)) map[k].tutors.push({ name: b.tutor, email: b.email });
+      const k = [b.tutor, b.date, time].join('|');
+      if (b.date + ' ' + time < cutoff || booked[k] || seen[k]) continue;
+      seen[k] = true;
+      out.push({ date: b.date, time: time, tutor: b.tutor, email: b.email });
     }
   });
-  return Object.keys(map).sort().map(k => map[k]);
+  return out.sort((a, c) => (a.date + a.time + a.tutor).localeCompare(c.date + c.time + c.tutor));
 }
 
 /** Every tutor time block from today through `days` ahead: {date, tutor, email, start, end} (minutes). */
@@ -352,7 +370,7 @@ function topics_() {
 const FONT_ = 'font-family:Arial,sans-serif;';
 
 function detailsTable_(r, forTutor) {
-  const rows = [['Topic', r['Topic']], ['When', whenText_(r['Date'], r['Time'])], ['Session', r['Format'] || 'In person'], ['Tutor', r['Tutor']]];
+  const rows = [['Topic', r['Topic']], ['When', whenText_(r['Date'], r['Time'], r['Duration'])], ['Session', r['Format'] || 'In person'], ['Tutor', r['Tutor']]];
   if (forTutor) {
     rows.push(['Student', r['Student'] + ' (' + r['Grade'] + ')'], ['Student email', r['Student Email']],
       ['Student phone', r['Student Phone']], ['Notes', r['Notes'] || '—']);
@@ -372,10 +390,10 @@ function button_(href, label, primary) {
 
 function sendRequestEmails_(bk, st) {
   const rec = {
-    'Topic': bk.topic, 'Format': bk.format, 'Date': bk.date, 'Time': bk.time, 'Tutor': bk.tutor, 'Booking ID': bk.id,
+    'Topic': bk.topic, 'Format': bk.format, 'Duration': bk.duration, 'Date': bk.date, 'Time': bk.time, 'Tutor': bk.tutor, 'Booking ID': bk.id,
     'Student': st.name, 'Grade': st.grade, 'Student Email': st.email, 'Student Phone': st.phone, 'Notes': st.notes,
   };
-  const when = whenText_(bk.date, bk.time);
+  const when = whenText_(bk.date, bk.time, bk.duration);
   const online = bk.format === 'Online';
   const tutorNote = online
     ? (meetingLink_(bk.tutor)
@@ -436,7 +454,7 @@ function sendDecisionEmail_(r) {
   const msg = {
     to: r['Student Email'],
     name: CONFIG.clubName,
-    subject: (accepted ? 'Confirmed: ' : 'Not available: ') + r['Topic'] + ' · ' + whenText_(r['Date'], r['Time']),
+    subject: (accepted ? 'Confirmed: ' : 'Not available: ') + r['Topic'] + ' · ' + whenText_(r['Date'], r['Time'], r['Duration']),
     htmlBody: accepted
       ? '<h2 style="' + FONT_ + 'color:#1d7a4a">You\'re confirmed, ' + first + '!</h2>' +
         '<p style="' + FONT_ + '">' + esc_(r['Tutor']) + ' accepted your session.</p>' + detailsTable_(r, false) + howToJoin +
@@ -449,12 +467,14 @@ function sendDecisionEmail_(r) {
   MailApp.sendEmail(msg);
 }
 
-function whenText_(iso, time) {
+function whenText_(iso, time, duration) {
+  const len = Number(duration) || CONFIG.sessionMinutes;
   const p = iso.split('-').map(Number);
   const d = new Date(p[0], p[1] - 1, p[2], 12);
   const day = Utilities.formatDate(d, Session.getScriptTimeZone(), 'EEE, MMM d');
   const fmt = t => { const m = toMinutes_(t); const h = Math.floor(m / 60); return ((h + 11) % 12 + 1) + ':' + String(m % 60).padStart(2, '0') + (h < 12 ? ' AM' : ' PM'); };
-  return day + ', ' + fmt(time) + '–' + fmt(fromMinutes_(toMinutes_(time) + CONFIG.sessionMinutes));
+  const label = len < 60 ? len + ' min' : (len / 60) + (len === 60 ? ' hour' : ' hours');
+  return day + ', ' + fmt(time) + '–' + fmt(fromMinutes_(toMinutes_(time) + len)) + ' (' + label + ')';
 }
 
 // ---------- helpers ----------

@@ -25,7 +25,11 @@ const DEFAULT_TOPICS = [
 const $ = (sel) => document.querySelector(sel);
 const state = {
   demo: !API_URL,
-  slots: [],
+  free: [],     // every free half hour per tutor, from the server
+  slots: [],    // start times (with tutor) that fit the chosen length
+  durations: [30, 60, 120],
+  duration: 30,
+  tutor: null,
   topics: DEFAULT_TOPICS,
   sessionMinutes: 30,
   date: null,
@@ -54,9 +58,12 @@ function addMinutes(hhmm, mins) {
   const t = h * 60 + m + mins;
   return `${String(Math.floor(t / 60)).padStart(2, "0")}:${String(t % 60).padStart(2, "0")}`;
 }
-function fmtWhen(date, time) {
+function fmtDuration(mins) {
+  return mins < 60 ? `${mins} min` : `${mins / 60} ${mins === 60 ? "hour" : "hours"}`;
+}
+function fmtWhen(date, time, mins = state.duration) {
   const day = parseISO(date).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
-  return `${day}, ${fmtTime(time)} – ${fmtTime(addMinutes(time, state.sessionMinutes))}`;
+  return `${day}, ${fmtTime(time)} – ${fmtTime(addMinutes(time, mins))} (${fmtDuration(mins)})`;
 }
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
@@ -98,9 +105,12 @@ async function loadSlots() {
   try {
     const data = state.demo ? demoSlots() : await (await fetch(`${API_URL}?action=slots`)).json();
     if (data.error) throw new Error(data.error);
-    state.slots = data.slots || [];
+    if (!data.free) throw new Error("Booking server is out of date: update the Apps Script deployment.");
+    state.free = data.free;
     if (data.topics && data.topics.length) state.topics = data.topics;
     if (data.sessionMinutes) state.sessionMinutes = data.sessionMinutes;
+    if (data.durations && data.durations.length) state.durations = data.durations;
+    if (state.durations.indexOf(state.duration) < 0) state.duration = state.durations[0];
     state.tutors = data.tutors || [];
     state.availability = data.availability || [];
     state.events = data.events || [];
@@ -110,10 +120,33 @@ async function loadSlots() {
     $("#day-detail").replaceChildren(el("p", { class: "error" }, "Couldn't load the calendar. Refresh the page to try again."));
     return;
   }
-  $("#session-length").textContent = state.sessionMinutes;
   renderTopics();
+  computeOptions();
+  renderDurations();
   renderDates();
   renderCalendar();
+}
+
+// A start time works when the same tutor is free for every half hour of the chosen length.
+function computeOptions() {
+  const free = new Set(state.free.map((s) => `${s.tutor}|${s.date}|${s.time}`));
+  const steps = state.duration / state.sessionMinutes;
+  state.slots = state.free.filter((s) => {
+    for (let k = 1; k < steps; k++) {
+      if (!free.has(`${s.tutor}|${s.date}|${addMinutes(s.time, k * state.sessionMinutes)}`)) return false;
+    }
+    return true;
+  });
+}
+
+function renderDurations() {
+  $("#durations").replaceChildren(...state.durations.map((d) => el("button", {
+    type: "button", class: "dur-btn", "aria-pressed": String(d === state.duration),
+    onclick: () => {
+      state.duration = d; state.time = state.tutor = null;
+      computeOptions(); renderDurations(); renderDates(); renderCalendar();
+    },
+  }, fmtDuration(d))));
 }
 
 function slotsByDate() {
@@ -129,19 +162,21 @@ function renderDates() {
   const byDate = slotsByDate();
   const box = $("#dates");
   if (!byDate.size) {
-    box.replaceChildren(el("p", { class: "muted" }, "No open times in the next few weeks. Check back soon."));
+    box.replaceChildren(el("p", { class: "muted" }, state.free.length
+      ? `No tutor has ${fmtDuration(state.duration)} free in a row. Try a shorter session.`
+      : "No open times in the next few weeks. Check back soon."));
     state.date = state.time = null;
     renderTimes();
     return;
   }
-  if (!byDate.has(state.date)) { state.date = null; state.time = null; }
+  if (!byDate.has(state.date)) { state.date = null; state.time = state.tutor = null; }
   box.replaceChildren(
     ...[...byDate].map(([date, slots]) => {
       const d = parseISO(date);
       return el("button", {
         type: "button", class: "date-btn", "aria-pressed": String(date === state.date),
         "aria-label": `${d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}, ${slots.length} open times`,
-        onclick: () => { state.date = date; state.time = null; renderDates(); },
+        onclick: () => { state.date = date; state.time = state.tutor = null; renderDates(); },
       },
         el("span", { class: "dow" }, d.toLocaleDateString("en-US", { weekday: "short" })),
         el("span", { class: "day" }, String(d.getDate())),
@@ -161,11 +196,12 @@ function renderTimes() {
     const slots = slotsByDate().get(state.date) || [];
     box.replaceChildren(
       ...slots.map((s) => el("button", {
-        type: "button", class: "time-btn", "aria-pressed": String(s.time === state.time),
-        onclick: () => { state.time = s.time; renderTimes(); },
+        type: "button", class: "time-btn", style: `--c: ${tutorColor(s.tutor)}`,
+        "aria-pressed": String(s.time === state.time && s.tutor === state.tutor),
+        onclick: () => { state.time = s.time; state.tutor = s.tutor; renderTimes(); },
       },
-        fmtTime(s.time),
-        el("small", {}, s.tutors === 1 ? "1 tutor free" : `${s.tutors} tutors free`),
+        `${fmtTime(s.time)} – ${fmtTime(addMinutes(s.time, state.duration))}`,
+        el("small", { class: "who" }, el("span", { class: "dot", "aria-hidden": "true" }), s.tutor),
       ))
     );
   }
@@ -176,6 +212,7 @@ function renderSummary() {
   $('#summary [data-k="topic"]').textContent = $("#topic").value || "—";
   $('#summary [data-k="format"]').textContent = $("#booking-form").elements.format.value || "—";
   $('#summary [data-k="when"]').textContent = state.date && state.time ? fmtWhen(state.date, state.time) : "—";
+  $('#summary [data-k="tutor"]').textContent = state.tutor || "—";
 }
 
 // ---------- calendar ----------
@@ -265,7 +302,7 @@ function renderDayDetail() {
       parts.push(el("button", {
         type: "button", class: "btn btn-block",
         onclick: () => {
-          state.date = iso; state.time = null; renderDates();
+          state.date = iso; state.time = state.tutor = null; renderDates();
           $("#book").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
         },
       }, `Book this day · ${open} open`));
@@ -312,6 +349,8 @@ async function submitBooking(e) {
     topic: f.elements.topic.value,
     date: state.date,
     time: state.time,
+    tutor: state.tutor,
+    duration: state.duration,
     name: f.elements.name.value.trim(),
     email: f.elements.email.value.trim(),
     phone: f.elements.phone.value.trim(),
@@ -320,7 +359,7 @@ async function submitBooking(e) {
     notes: f.elements.notes.value.trim(),
   };
   if (!payload.topic) return showError("Choose a topic.");
-  if (!payload.date || !payload.time) return showError("Pick a day and a time.");
+  if (!payload.date || !payload.time || !payload.tutor) return showError("Pick a day and a time with a tutor.");
   if (!payload.format) return showError("Choose In person or Online.");
   if (!payload.name) return showError("Enter your name.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return showError("Enter a valid email so we can confirm your session.");
@@ -356,7 +395,7 @@ async function submitBooking(e) {
 
 function showConfirmation(b, p) {
   $("#c-topic").textContent = b.topic;
-  $("#c-when").textContent = fmtWhen(b.date, b.time);
+  $("#c-when").textContent = fmtWhen(b.date, b.time, b.duration || p.duration);
   $("#c-format").textContent = p.format;
   $("#c-tutor").textContent = b.tutor;
   $("#c-id").textContent = b.id;
@@ -371,7 +410,7 @@ function showConfirmation(b, p) {
 function resetForm() {
   const f = $("#booking-form");
   f.elements.notes.value = "";
-  state.date = state.time = null;
+  state.date = state.time = state.tutor = null;
   $("#confirmation").hidden = true;
   f.hidden = false;
   loadSlots();
@@ -395,38 +434,33 @@ function demoBooked() {
 }
 function demoSlots() {
   const booked = demoBooked();
-  const slots = [];
+  const free = [];
   const now = new Date();
   for (let i = 1; i <= 14; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     const iso = isoOf(d);
-    const map = new Map();
     for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) {
       for (let t = start; addMinutes(t, 30) <= end; t = addMinutes(t, 30)) {
-        if (booked.some((b) => b.date === iso && b.time === t && b.tutor === tutor)) continue;
-        if ((i + parseInt(t)) % 5 === 0) continue; // pretend some times are already taken
-        map.set(t, (map.get(t) || 0) + 1);
+        const taken = booked.some((b) => b.date === iso && b.tutor === tutor && t >= b.time && t < addMinutes(b.time, b.duration || 30));
+        if (!taken) free.push({ date: iso, time: t, tutor });
       }
     }
-    [...map].sort().forEach(([time, tutors]) => slots.push({ date: iso, time, tutors }));
   }
+  free.sort((a, b) => (a.date + a.time + a.tutor).localeCompare(b.date + b.time + b.tutor));
   const availability = [];
   for (let i = 0; i <= 62; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) availability.push({ date: isoOf(d), tutor, start, end });
   }
-  return { sessionMinutes: 30, slots, topics: DEFAULT_TOPICS, tutors: DEMO_TUTORS, availability, events: DEMO_EVENTS };
+  return { sessionMinutes: 30, durations: [30, 60, 120], free, topics: DEFAULT_TOPICS, tutors: DEMO_TUTORS, availability, events: DEMO_EVENTS };
 }
 function demoBook(p) {
-  const tutors = [];
-  for (const [tutor, start, end] of DEMO_WEEK[parseISO(p.date).getDay()] || []) {
-    if (p.time >= start && addMinutes(p.time, 30) <= end) tutors.push(tutor);
+  const free = new Set(demoSlots().free.map((s) => `${s.tutor}|${s.date}|${s.time}`));
+  for (let m = 0; m < p.duration; m += 30) {
+    if (!free.has(`${p.tutor}|${p.date}|${addMinutes(p.time, m)}`)) return { ok: false, error: "slot_taken" };
   }
-  const taken = demoBooked();
-  const tutor = tutors.find((t) => !taken.some((b) => b.date === p.date && b.time === p.time && b.tutor === t));
-  if (!tutor) return { ok: false, error: "slot_taken" };
-  const booking = { id: "AX-" + Math.random().toString(36).slice(2, 8).toUpperCase(), date: p.date, time: p.time, tutor, topic: p.topic };
-  try { localStorage.setItem("axiom-demo-bookings", JSON.stringify([...taken, booking])); } catch {}
+  const booking = { id: "AX-" + Math.random().toString(36).slice(2, 8).toUpperCase(), date: p.date, time: p.time, duration: p.duration, tutor: p.tutor, topic: p.topic };
+  try { localStorage.setItem("axiom-demo-bookings", JSON.stringify([...demoBooked(), booking])); } catch {}
   return { ok: true, booking };
 }
 
