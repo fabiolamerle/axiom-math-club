@@ -76,7 +76,7 @@ function setup() {
     ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', 'Friday', '14:00', '17:00', ''],
   ]);
   ensureSheet_(ss, 'Events', ['Date', 'Start', 'End', 'Title', 'Location', 'Details'], [
-    ['2026-10-28', '', '', 'AXIOM 1st Meeting', 'Room 104', 'Our first club meeting. Everyone is welcome.'],
+    ['2026-10-28', '16:30', '', 'AXIOM 1st Meeting', 'Room 104', 'Our first club meeting. Everyone is welcome.'],
   ]);
   ensureSheet_(ss, 'Topics', ['Category', 'Topic'], DEFAULT_TOPICS);
   ensureSheet_(ss, 'Bookings', BOOKING_HEADERS, []);

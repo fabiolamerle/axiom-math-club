@@ -490,7 +490,7 @@ const DEMO_WEEK = {
   5: [[DEMO_TUTORS[3], "14:00", "17:00"], [DEMO_TUTORS[2], "16:30", "19:30"]],
 };
 const DEMO_EVENTS = [
-  { date: "2026-10-28", start: "", end: "", title: "AXIOM 1st Meeting", location: "Room 104", details: "Our first club meeting. Everyone is welcome." },
+  { date: "2026-10-28", start: "16:30", end: "", title: "AXIOM 1st Meeting", location: "Room 104", details: "Our first club meeting. Everyone is welcome." },
 ];
 function demoBooked() {
   try { return JSON.parse(localStorage.getItem("axiom-demo-bookings") || "[]"); } catch { return []; }

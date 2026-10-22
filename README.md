@@ -52,7 +52,7 @@ En la pestaña **Events**, una fila por evento:
 
 | Date | Start | End | Title | Location | Details |
 |---|---|---|---|---|---|
-| 2026-10-28 | | | AXIOM 1st Meeting | Room 104 | Our first club meeting. Everyone is welcome. |
+| 2026-10-28 | 16:30 | | AXIOM 1st Meeting | Room 104 | Our first club meeting. Everyone is welcome. |
 
 Si dejas `Start` vacío, el sitio muestra "Time TBA". El calendario se actualiza al recargar la página.
 
