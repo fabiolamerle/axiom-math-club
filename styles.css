@@ -347,6 +347,12 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .confirmation h3 { font-size: 2rem; text-transform: uppercase; color: var(--ok); }
 .confirmation .summary { width: 100%; text-align: left; }
 
+/* Home mission band */
+.home-mission { padding-block: 40px 0; display: grid; gap: 12px; }
+.home-mission .eyebrow { margin: 0; }
+.more-link { justify-self: start; font-weight: 700; text-decoration: none; }
+.more-link:hover { text-decoration: underline; }
+
 /* About */
 .about { padding-block: 8px 32px; }
 .about h2 { margin-bottom: 16px; }
