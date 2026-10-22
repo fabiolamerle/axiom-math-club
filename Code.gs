@@ -8,6 +8,7 @@
  *                 Day is a weekday ("Monday" / "Lunes") for every week, or a date (2026-10-28) for one day.
  *   Topics        Category | Topic
  *   Events        Date | Start | End | Title | Location | Details  (shown on the site's calendar)
+ *   Tutor Applications  written by the site's "Become a tutor" form.
  *   Bookings      written by the site. Status goes Pending -> Accepted / Declined when the tutor
  *                 answers from the email. Set Status to "Cancelled" to free a slot by hand.
  */
@@ -27,6 +28,9 @@ const FORMATS = ['In person', 'Online'];
 
 const BOOKING_HEADERS = ['Created', 'Booking ID', 'Status', 'Date', 'Time', 'Tutor', 'Tutor Email',
   'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Format', 'Duration', 'Notes', 'Responded', 'Token'];
+
+const APPLICATION_HEADERS = ['Created', 'Status', 'Name', 'Email', 'Phone', 'AS Year', 'Highest Math',
+  'Topics', 'Availability', 'Why'];
 
 const DEFAULT_TOPICS = [
   ['Precalculus', 'Functions & Graphs'],
@@ -72,10 +76,11 @@ function setup() {
     ['C/Maj Cortes Garay', 'Jorge.cortes4@upr.edu', 'Friday', '14:00', '17:00', ''],
   ]);
   ensureSheet_(ss, 'Events', ['Date', 'Start', 'End', 'Title', 'Location', 'Details'], [
-    ['2026-10-28', '', '', 'AXIOM 1st Meeting', '', 'Our first club meeting. Everyone is welcome.'],
+    ['2026-10-28', '', '', 'AXIOM 1st Meeting', 'Room 104', 'Our first club meeting. Everyone is welcome.'],
   ]);
   ensureSheet_(ss, 'Topics', ['Category', 'Topic'], DEFAULT_TOPICS);
   ensureSheet_(ss, 'Bookings', BOOKING_HEADERS, []);
+  ensureSheet_(ss, 'Tutor Applications', APPLICATION_HEADERS, []);
 }
 
 function ensureSheet_(ss, name, headers, rows) {
@@ -123,6 +128,7 @@ function doPost(e) {
   } catch (err) {
     return json_({ ok: false, error: 'bad_request', message: 'Invalid request.' });
   }
+  if (p.action === 'apply') return json_(handleApplication_(p));
   const clean = v => String(v == null ? '' : v).trim().slice(0, 500);
   const b = {
     name: clean(p.name), email: clean(p.email), phone: clean(p.phone), grade: clean(p.grade),
@@ -178,6 +184,52 @@ function doPost(e) {
     console.error('Email failed: ' + err); // the request is saved even if email fails
   }
   return json_({ ok: true, booking: { id: booking.id, date: booking.date, time: booking.time, duration: booking.duration, tutor: booking.tutor, topic: booking.topic, status: 'Pending' } });
+}
+
+// ---------- tutor applications ----------
+function handleApplication_(p) {
+  const clean = (v, n) => String(v == null ? '' : v).trim().slice(0, n || 500);
+  const a = {
+    name: clean(p.name), email: clean(p.email), phone: clean(p.phone), asYear: clean(p.asYear),
+    math: clean(p.math), topics: clean(p.topics, 1000), availability: clean(p.availability, 1000), why: clean(p.why, 2000),
+  };
+  if (!a.name || !a.asYear) return { ok: false, error: 'invalid', message: 'Fill in your name and AS year.' };
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(a.email)) return { ok: false, error: 'invalid', message: 'Enter a valid email.' };
+  if (a.phone.replace(/\D/g, '').length < 7) return { ok: false, error: 'invalid', message: 'Enter a valid phone number.' };
+  if (!a.why) return { ok: false, error: 'invalid', message: 'Tell us why you want to tutor.' };
+
+  const ss = SpreadsheetApp.getActive();
+  ensureSheet_(ss, 'Tutor Applications', APPLICATION_HEADERS, []);
+  ss.getSheetByName('Tutor Applications').appendRow([new Date().toISOString(), 'New', a.name, a.email, a.phone,
+    a.asYear, a.math, a.topics, a.availability, a.why]);
+
+  try {
+    const rows = [['Name', a.name], ['Email', a.email], ['Phone', a.phone], ['AS year', a.asYear],
+      ['Highest math', a.math || '—'], ['Can help with', a.topics || '—'], ['Usually free', a.availability || '—'], ['Why', a.why]];
+    const table = '<table cellpadding="6" style="border-collapse:collapse;' + FONT_ + '">' +
+      rows.map(x => '<tr><td style="color:#5a6880;vertical-align:top">' + esc_(x[0]) + '</td><td><b>' + esc_(x[1]) + '</b></td></tr>').join('') +
+      '</table>';
+    let owner = '';
+    try { owner = Session.getEffectiveUser().getEmail(); } catch (err) { /* fall back to alsoNotify */ }
+    const staff = [owner].concat(CONFIG.alsoNotify.split(',')).map(x => x.trim()).filter(Boolean);
+    if (staff.length) {
+      MailApp.sendEmail({
+        to: staff.join(','), replyTo: a.email, name: CONFIG.clubName,
+        subject: 'New tutor application: ' + a.name + ' (' + a.asYear + ')',
+        htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">New tutor application</h2>' + table +
+          '<p style="' + FONT_ + 'color:#5a6880">It is saved in the "Tutor Applications" tab. Reply to this email to contact the applicant.</p>',
+      });
+    }
+    MailApp.sendEmail({
+      to: a.email, name: CONFIG.clubName,
+      subject: 'We got your tutor application',
+      htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">Thanks for applying, ' + esc_(a.name.split(' ')[0]) + '!</h2>' +
+        '<p style="' + FONT_ + '">The ' + esc_(CONFIG.clubName) + ' team will review your application and contact you soon.</p>',
+    });
+  } catch (err) {
+    console.error('Application email failed: ' + err); // the application is saved even if email fails
+  }
+  return { ok: true };
 }
 
 // ---------- tutor accepts / declines ----------

@@ -99,6 +99,61 @@ function renderTopics() {
     list.append(el("div", {}, el("h3", {}, cat), el("ul", {}, ...topics.map((t) => el("li", {}, t)))));
   }
   select.value = current;
+  renderApplyTopics();
+}
+
+// ---------- become a tutor ----------
+function renderApplyTopics() {
+  const box = $("#apply-topics");
+  const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
+  box.replaceChildren(...state.topics.map(([, t]) => el("label", { class: "chip-check" },
+    Object.assign(el("input", { type: "checkbox", name: "topics", value: t }), { checked: checked.has(t) }), t)));
+}
+
+async function submitApplication(e) {
+  e.preventDefault();
+  const f = e.target;
+  const err = $("#apply-error");
+  const fail = (msg) => { err.textContent = msg; err.hidden = false; };
+  const payload = {
+    action: "apply",
+    name: f.elements.name.value.trim(),
+    email: f.elements.email.value.trim(),
+    phone: f.elements.phone.value.trim(),
+    asYear: f.elements.asYear.value,
+    math: f.elements.math.value,
+    topics: [...f.querySelectorAll('input[name="topics"]:checked')].map((i) => i.value).join(", "),
+    availability: f.elements.availability.value.trim(),
+    why: f.elements.why.value.trim(),
+  };
+  if (!payload.name) return fail("Enter your name.");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return fail("Enter a valid email so we can contact you.");
+  if (payload.phone.replace(/\D/g, "").length < 7) return fail("Enter your phone number.");
+  if (!payload.asYear) return fail("Select your AS year.");
+  if (!payload.why) return fail("Tell us why you want to tutor.");
+  err.hidden = true;
+
+  const btn = $("#apply-submit");
+  btn.disabled = true;
+  btn.textContent = "Sending…";
+  try {
+    const res = state.demo
+      ? { ok: true }
+      : await (await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) })).json();
+    if (!res.ok) return fail(res.message || "The application didn't go through. Try again.");
+    $("#apply-msg").textContent = state.demo
+      ? "Demo mode: nothing was sent."
+      : `Thanks, ${payload.name.split(" ")[0]}! We sent a confirmation to ${payload.email}. The AXIOM team will contact you soon.`;
+    f.hidden = true;
+    $("#apply-done").hidden = false;
+    $("#apply-done").focus();
+  } catch (error) {
+    console.error(error);
+    fail("Couldn't reach the server. Check your connection and try again.");
+  } finally {
+    btn.disabled = false;
+    btn.textContent = "Send application";
+  }
 }
 
 // ---------- slots ----------
@@ -428,7 +483,7 @@ const DEMO_WEEK = {
   5: [[DEMO_TUTORS[3], "14:00", "17:00"], [DEMO_TUTORS[2], "16:30", "19:30"]],
 };
 const DEMO_EVENTS = [
-  { date: "2026-10-28", start: "", end: "", title: "AXIOM 1st Meeting", location: "", details: "Our first club meeting. Everyone is welcome." },
+  { date: "2026-10-28", start: "", end: "", title: "AXIOM 1st Meeting", location: "Room 104", details: "Our first club meeting. Everyone is welcome." },
 ];
 function demoBooked() {
   try { return JSON.parse(localStorage.getItem("axiom-demo-bookings") || "[]"); } catch { return []; }
@@ -470,6 +525,7 @@ $("#demo-note").hidden = !state.demo;
 $("#topic").addEventListener("change", renderSummary);
 document.querySelectorAll('input[name="format"]').forEach((r) => r.addEventListener("change", renderSummary));
 $("#booking-form").addEventListener("submit", submitBooking);
+$("#apply-form").addEventListener("submit", submitApplication);
 $("#book-another").addEventListener("click", resetForm);
 $("#cal-prev").addEventListener("click", () => shiftMonth(-1));
 $("#cal-next").addEventListener("click", () => shiftMonth(1));

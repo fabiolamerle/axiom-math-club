@@ -29,6 +29,7 @@
       <a href="#how">How it works</a>
       <a href="#calendar">Calendar</a>
       <a href="#topics">Topics</a>
+      <a href="#tutor">Become a tutor</a>
       <a class="btn btn-small" href="#book">Book a session</a>
     </nav>
   </div>
@@ -52,7 +53,7 @@
         <p class="lede">Book a one-on-one session with an AXIOM tutor. Pick your topic, choose a time when a tutor is free, and you'll get an email as soon as your tutor confirms.</p>
         <div class="hero-actions">
           <a class="btn" href="#book">Book a session</a>
-          <span class="meeting">1st club meeting: <strong>Oct. 28</strong></span>
+          <span class="meeting">1st club meeting: <strong>Wednesday, Oct. 28 · Room 104</strong></span>
         </div>
       </div>
       <img class="hero-logo" src="logo.png" alt="AXIOM Math Club logo" width="388" height="388">
@@ -213,6 +214,82 @@
     <div id="topic-list" class="topic-groups"></div>
   </section>
 </main>
+
+<section id="tutor" class="tutor-apply">
+    <div class="wrap apply-layout">
+      <div class="apply-copy">
+        <p class="eyebrow">Join the team</p>
+        <h2>Want to be a tutor?</h2>
+        <p>Good at math and like helping other cadets? Let us know. Fill out the application and the AXIOM team will contact you.</p>
+        <ul class="apply-points">
+          <li>Pick your own hours</li>
+          <li>Tutor in person or online</li>
+          <li>Help cadets get through Precalc and beyond</li>
+        </ul>
+      </div>
+
+      <form id="apply-form" class="panel apply-form" novalidate>
+        <div class="apply-grid">
+          <div class="field">
+            <label for="a-name">Full name</label>
+            <input id="a-name" name="name" autocomplete="name" required>
+          </div>
+          <div class="field">
+            <label for="a-email">Email</label>
+            <input id="a-email" name="email" type="email" autocomplete="email" required>
+          </div>
+          <div class="field">
+            <label for="a-phone">Phone number</label>
+            <input id="a-phone" name="phone" type="tel" autocomplete="tel" inputmode="tel" placeholder="787-555-1234" required>
+          </div>
+          <div class="field">
+            <label for="a-year">AS year</label>
+            <select id="a-year" name="asYear" required>
+              <option value="">Select…</option>
+              <option>AS100</option>
+              <option>AS200</option>
+              <option>AS300</option>
+              <option>AS400</option>
+              <option>Other</option>
+            </select>
+          </div>
+          <div class="field span-2">
+            <label for="a-math">Highest math course you've passed</label>
+            <select id="a-math" name="math">
+              <option value="">Select…</option>
+              <option>Precalculus</option>
+              <option>Calculus I</option>
+              <option>Calculus II</option>
+              <option>Calculus III</option>
+              <option>Differential Equations</option>
+              <option>Linear Algebra</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+        <fieldset class="field apply-topics">
+          <legend>What can you help with? <span class="opt">Pick all that apply</span></legend>
+          <div id="apply-topics" class="chip-checks"></div>
+        </fieldset>
+        <div class="field">
+          <label for="a-avail">When are you usually free? <span class="opt">Optional</span></label>
+          <textarea id="a-avail" name="availability" rows="2" placeholder="e.g. Mon and Wed 1500–1700, Fri 1300–1500"></textarea>
+        </div>
+        <div class="field">
+          <label for="a-why">Why do you want to tutor?</label>
+          <textarea id="a-why" name="why" rows="3" required></textarea>
+        </div>
+        <p id="apply-error" class="error" role="alert" hidden></p>
+        <button type="submit" class="btn btn-block" id="apply-submit">Send application</button>
+      </form>
+
+      <div id="apply-done" class="panel confirmation" tabindex="-1" hidden>
+        <img src="logo.png" alt="" width="72" height="72">
+        <h3>Application sent!</h3>
+        <p id="apply-msg" class="muted"></p>
+      </div>
+    </div>
+  </section>
 
 <footer class="site-footer">
   <div class="wrap footer-inner">

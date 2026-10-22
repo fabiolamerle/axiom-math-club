@@ -51,7 +51,7 @@ En la pestaña **Events**, una fila por evento:
 
 | Date | Start | End | Title | Location | Details |
 |---|---|---|---|---|---|
-| 2026-10-28 | | | AXIOM 1st Meeting | | Our first club meeting. Everyone is welcome. |
+| 2026-10-28 | | | AXIOM 1st Meeting | Room 104 | Our first club meeting. Everyone is welcome. |
 
 Si dejas `Start` vacío, el sitio muestra "Time TBA". El calendario se actualiza al recargar la página.
 
@@ -80,6 +80,11 @@ Cualquier hosting estático sirve. Lo más fácil:
 1. En Apps Script, borra todo, pega el `Code.gs` nuevo y guarda.
 2. Si hay columnas nuevas, selecciona `setup` y presiona **Ejecutar** (añade las columnas que falten sin borrar nada).
 3. **Implementar → Gestionar implementaciones →** lápiz ✏️ **→ Versión: Nueva versión → Implementar**. La URL `/exec` sigue igual.
+
+## Aplicaciones de tutores
+La sección **Want to be a tutor?** del sitio guarda cada aplicación en la pestaña **Tutor Applications** y envía un email a la cuenta dueña del sistema (y a `alsoNotify`). El aspirante recibe una confirmación. Usa la columna `Status` para llevar el control (New, Contacted, Accepted…). Para aceptar a alguien como tutor, añade sus filas en **Availability**.
+
+El QR del sitio está en `qr-code.png`.
 
 ## Uso diario
 - **Ver reservas**: pestaña `Bookings` (columna `Status`: Pending, Accepted o Declined).
