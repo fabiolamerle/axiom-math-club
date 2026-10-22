@@ -49,9 +49,10 @@ function parseISO(iso) {
 function isoOf(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+// Military time: "16:30" -> "1630"
 function fmtTime(hhmm) {
-  const [h, m] = hhmm.split(":").map(Number);
-  return new Date(2000, 0, 1, h, m).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const [h, m] = hhmm.split(":");
+  return h.padStart(2, "0") + m;
 }
 function addMinutes(hhmm, mins) {
   const [h, m] = hhmm.split(":").map(Number);

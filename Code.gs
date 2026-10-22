@@ -473,7 +473,7 @@ function whenText_(iso, time, duration) {
   const p = iso.split('-').map(Number);
   const d = new Date(p[0], p[1] - 1, p[2], 12);
   const day = Utilities.formatDate(d, Session.getScriptTimeZone(), 'EEE, MMM d');
-  const fmt = t => { const m = toMinutes_(t); const h = Math.floor(m / 60); return ((h + 11) % 12 + 1) + ':' + String(m % 60).padStart(2, '0') + (h < 12 ? ' AM' : ' PM'); };
+  const fmt = t => t.replace(':', ''); // military time, e.g. 1630
   const label = len < 60 ? len + ' min' : (len / 60) + (len === 60 ? ' hour' : ' hours');
   return day + ', ' + fmt(time) + '–' + fmt(fromMinutes_(toMinutes_(time) + len)) + ' (' + label + ')';
 }
