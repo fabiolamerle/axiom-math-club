@@ -86,25 +86,29 @@ function groupTopics() {
   }
   return groups;
 }
+// Each page has only some of these sections; every render skips what isn't on the page.
 function renderTopics() {
   const select = $("#topic");
-  const current = select.value;
-  select.replaceChildren(el("option", { value: "" }, "Choose a topic…"));
   const list = $("#topic-list");
-  list.replaceChildren();
+  const current = select ? select.value : "";
+  select?.replaceChildren(el("option", { value: "" }, "Choose a topic…"));
+  list?.replaceChildren();
   for (const [cat, topics] of groupTopics()) {
-    const og = el("optgroup", { label: cat });
-    topics.forEach((t) => og.append(el("option", { value: t }, t)));
-    select.append(og);
-    list.append(el("div", {}, el("h3", {}, cat), el("ul", {}, ...topics.map((t) => el("li", {}, t)))));
+    if (select) {
+      const og = el("optgroup", { label: cat });
+      topics.forEach((t) => og.append(el("option", { value: t }, t)));
+      select.append(og);
+    }
+    list?.append(el("div", {}, el("h3", {}, cat), el("ul", {}, ...topics.map((t) => el("li", {}, t)))));
   }
-  select.value = current;
+  if (select) select.value = current;
   renderApplyTopics();
 }
 
 // ---------- become a tutor ----------
 function renderApplyTopics() {
   const box = $("#apply-topics");
+  if (!box) return;
   const checked = new Set([...box.querySelectorAll("input:checked")].map((i) => i.value));
   box.replaceChildren(...state.topics.map(([, t]) => el("label", { class: "chip-check" },
     Object.assign(el("input", { type: "checkbox", name: "topics", value: t }), { checked: checked.has(t) }), t)));
@@ -172,14 +176,19 @@ async function loadSlots() {
     state.events = data.events || [];
   } catch (err) {
     console.error(err);
-    $("#dates").replaceChildren(el("p", { class: "error" }, "Couldn't load open times. Refresh the page to try again."));
-    $("#day-detail").replaceChildren(el("p", { class: "error" }, "Couldn't load the calendar. Refresh the page to try again."));
+    $("#dates")?.replaceChildren(el("p", { class: "error" }, "Couldn't load open times. Refresh the page to try again."));
+    $("#day-detail")?.replaceChildren(el("p", { class: "error" }, "Couldn't load the calendar. Refresh the page to try again."));
     return;
   }
   renderTopics();
   computeOptions();
-  renderDurations();
-  renderDates();
+  if ($("#dates")) {
+    // Arriving from the calendar's "Book this day" link preselects that day.
+    const wanted = new URLSearchParams(location.search).get("date");
+    if (wanted && !state.date) state.date = wanted;
+    renderDurations();
+    renderDates();
+  }
   renderCalendar();
 }
 
@@ -295,6 +304,7 @@ function dayData(iso) {
 }
 
 function renderCalendar() {
+  if (!$("#cal-grid")) return;
   const now = new Date();
   if (!state.calMonth) state.calMonth = new Date(now.getFullYear(), now.getMonth(), 1);
   if (!state.calDay) state.calDay = todayISO();
@@ -357,10 +367,7 @@ function renderDayDetail() {
     if (open) {
       parts.push(el("button", {
         type: "button", class: "btn btn-block",
-        onclick: () => {
-          state.date = iso; state.time = state.tutor = null; renderDates();
-          $("#book").scrollIntoView({ behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
-        },
+        onclick: () => { location.href = `book.html?date=${iso}`; },
       }, `Book this day · ${open} open`));
     } else if (blocks.length) {
       parts.push(el("p", { class: "muted" }, iso < todayISO() ? "This day has passed." : "No open booking times this day yet."));
@@ -521,15 +528,15 @@ function demoBook(p) {
 }
 
 // ---------- start ----------
-$("#demo-note").hidden = !state.demo;
-$("#topic").addEventListener("change", renderSummary);
+if ($("#demo-note")) $("#demo-note").hidden = !state.demo;
+$("#topic")?.addEventListener("change", renderSummary);
 document.querySelectorAll('input[name="format"]').forEach((r) => r.addEventListener("change", renderSummary));
-$("#booking-form").addEventListener("submit", submitBooking);
-$("#apply-form").addEventListener("submit", submitApplication);
-$("#book-another").addEventListener("click", resetForm);
-$("#cal-prev").addEventListener("click", () => shiftMonth(-1));
-$("#cal-next").addEventListener("click", () => shiftMonth(1));
-$("#show-events").addEventListener("change", renderCalendar);
-$("#show-tutors").addEventListener("change", renderCalendar);
+$("#booking-form")?.addEventListener("submit", submitBooking);
+$("#apply-form")?.addEventListener("submit", submitApplication);
+$("#book-another")?.addEventListener("click", resetForm);
+$("#cal-prev")?.addEventListener("click", () => shiftMonth(-1));
+$("#cal-next")?.addEventListener("click", () => shiftMonth(1));
+$("#show-events")?.addEventListener("change", renderCalendar);
+$("#show-tutors")?.addEventListener("change", renderCalendar);
 renderTopics();
 loadSlots();

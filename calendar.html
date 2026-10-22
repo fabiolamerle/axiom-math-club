@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Club Calendar | AXIOM Math Club</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="AXIOM Math Club events and tutor availability.">
+<link rel="icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Source+Sans+3:wght@400;600;700&family=JetBrains+Mono:wght@500&family=Permanent+Marker&family=Caveat:wght@500&display=swap">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header class="site-header">
+  <div class="ticker" role="note" aria-label="DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT">
+    <div class="ticker-track" aria-hidden="true">
+      <div class="ticker-half"><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span></div>
+      <div class="ticker-half"><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span><span class="ticker-item"><b>⚠</b> DISCLAIMER: These sessions are neither practice nor tutoring for the AFOQT</span></div>
+    </div>
+  </div>
+  <div class="wrap header-inner">
+    <a class="brand" href="index.html">
+      <img src="logo.png" alt="" width="44" height="44">
+      <span class="brand-name">AXIOM<small>Math Club</small></span>
+    </a>
+    <nav class="nav" aria-label="Main">
+      <a href="index.html">Home</a>
+      <a href="calendar.html" aria-current="page">Calendar</a>
+      <a href="tutor.html">Become a tutor</a>
+      <a class="btn btn-small" href="book.html">Book a session</a>
+    </nav>
+  </div>
+</header>
+
+<main id="top" class="page">
+  <section id="calendar" class="calendar-section">
+    <div class="wrap">
+      <div class="section-head">
+        <h2>Club calendar</h2>
+        <p>Upcoming events and when each tutor is available. Tap a day for details.</p>
+      </div>
+      <div class="cal-layout">
+        <div class="panel cal">
+          <div class="cal-toolbar">
+            <button type="button" class="icon-btn" id="cal-prev" aria-label="Previous month">&#8249;</button>
+            <h3 id="cal-title" aria-live="polite"></h3>
+            <button type="button" class="icon-btn" id="cal-next" aria-label="Next month">&#8250;</button>
+          </div>
+          <div class="cal-filters" role="group" aria-label="Show on calendar">
+            <label class="toggle"><input type="checkbox" id="show-events" checked> <span class="swatch ev"></span>Events</label>
+            <label class="toggle"><input type="checkbox" id="show-tutors" checked> <span class="swatch tu"></span>Tutor availability</label>
+          </div>
+          <div class="cal-scroll">
+            <div class="cal-grid" id="cal-grid"></div>
+          </div>
+        </div>
+        <div class="cal-side">
+          <aside class="panel day-detail" id="day-detail" aria-live="polite">
+            <p class="muted">Loading calendar…</p>
+          </aside>
+          <div class="panel tutors">
+            <h3>Our tutors</h3>
+            <ul id="tutor-list" class="tutor-list"></ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer-inner">
+    <img src="logo.png" alt="" width="40" height="40">
+    <p>AXIOM Math Club · Peer tutoring by students, for students.</p>
+    <nav class="footer-nav" aria-label="Footer">
+      <a href="index.html">Home</a>
+      <a href="book.html">Book a session</a>
+      <a href="calendar.html">Calendar</a>
+      <a href="tutor.html">Become a tutor</a>
+    </nav>
+  </div>
+</footer>
+
+<script src="script.js"></script>
+</body>
+</html>

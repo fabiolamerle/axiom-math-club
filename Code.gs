@@ -514,7 +514,7 @@ function sendDecisionEmail_(r) {
         '<p style="' + FONT_ + 'color:#5a6880">Need to cancel or reschedule? Reply to this email.</p>'
       : '<h2 style="' + FONT_ + 'color:#1b2d4b">Sorry, ' + first + '</h2>' +
         '<p style="' + FONT_ + '">' + esc_(r['Tutor']) + ' can\'t make this time. Please pick another one.</p>' +
-        detailsTable_(r, false) + '<p>' + button_(CONFIG.siteUrl + '#book', 'Pick another time', true) + '</p>',
+        detailsTable_(r, false) + '<p>' + button_(CONFIG.siteUrl + 'book.html', 'Pick another time', true) + '</p>',
   };
   if (r['Tutor Email']) msg.replyTo = String(r['Tutor Email']);
   MailApp.sendEmail(msg);

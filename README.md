@@ -14,7 +14,8 @@ Mientras no conectes el backend, el sitio funciona en **modo demo** (horarios de
 
 | Archivo | Qué es |
 |---|---|
-| `index.html`, `styles.css`, `script.js`, `logo.png` | El sitio (estático, se puede hospedar gratis) |
+| `index.html` (Home), `book.html` (reservar), `calendar.html` (calendario), `tutor.html` (ser tutor) | Las 4 páginas del sitio |
+| `styles.css`, `script.js`, `logo.png` | Diseño, lógica y logo, compartidos por todas las páginas |
 | `Code.gs` | Backend en Google Apps Script: calcula horarios libres, guarda reservas y envía los emails |
 
 ## Configuración (unos 10 minutos)
@@ -91,7 +92,7 @@ El QR del sitio está en `qr-code.png`.
 - **Cancelar una reserva**: cambia `Status` a `Cancelled`; la hora vuelve a quedar libre.
 - **Avisar a más personas** (ej. el presidente del club): en `Code.gs`, `alsoNotify: 'presidente@gmail.com'`.
 - **Ajustes** en `CONFIG` de `Code.gs`: duración de sesión, cuántos días adelante se puede reservar, y con cuántas horas de anticipación mínima.
-- La fecha de la primera reunión ("Oct. 28") y el texto del anuncio que se mueve arriba (disclaimer) están en `index.html`.
+- La fecha de la primera reunión está en `index.html`. El texto del anuncio que se mueve arriba (disclaimer) está en las 4 páginas: si lo cambias, cámbialo en todas.
 
 ## Límites
 Gmail gratis permite unos 100 emails al día desde Apps Script (cada reserva usa 3: tutor, estudiante y la respuesta). Para un club escolar sobra.
