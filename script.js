@@ -176,7 +176,11 @@ async function loadSlots() {
     if (state.durations.indexOf(state.duration) < 0) state.duration = state.durations[0];
     state.tutors = data.tutors || [];
     state.availability = data.availability || [];
-    state.events = data.events || [];
+    // Meetings from the Busy sheet show on the calendar like events, with who attends.
+    state.events = [...(data.events || []), ...(data.busy || []).map((x) => ({
+      date: x.date, start: x.start, end: x.end, title: x.label, location: "",
+      details: `${x.tutors.join(", ")} · no tutoring with them at this time`, busy: true,
+    }))].sort((a, b) => (a.date + a.start).localeCompare(b.date + b.start));
   } catch (err) {
     console.error(err);
     $("#dates")?.replaceChildren(el("p", { class: "error" }, "Couldn't load open times. Refresh the page to try again."));
@@ -342,7 +346,7 @@ function renderCalendar() {
       onclick: () => { state.calDay = iso; renderCalendar(); },
     },
       el("span", { class: "cal-num" }, String(d)),
-      ...events.map((e) => el("span", { class: "cal-ev", title: e.title }, e.title)),
+      ...events.map((e) => el("span", { class: `cal-ev${e.busy ? " cal-busy" : ""}`, title: e.title }, e.title)),
       ...tutors.map((t) => el("span", { class: "cal-tu", style: `--c: ${tutorColor(t)}`, title: t }, shortName(t))),
       dots,
     ));
@@ -361,7 +365,7 @@ function renderDayDetail() {
   if ($("#show-events").checked) {
     parts.push(el("div", {}, el("h4", {}, "Events"),
       events.length
-        ? el("ul", { class: "detail-list" }, ...events.map((e) => el("li", { class: "ev-item" },
+        ? el("ul", { class: "detail-list" }, ...events.map((e) => el("li", { class: `ev-item${e.busy ? " ev-busy" : ""}` },
             el("strong", {}, e.title),
             el("span", {}, [fmtRange(e.start, e.end), e.location].filter(Boolean).join(" · ")),
             ...(e.details ? [el("span", {}, e.details)] : []))))
@@ -518,6 +522,7 @@ const DEMO_WEEK = {
   4: [[DEMO_TUTORS[1], "12:30", "14:30"], [DEMO_TUTORS[3], "15:00", "18:00"], [DEMO_TUTORS[2], "16:30", "19:30"]],
   5: [[DEMO_TUTORS[3], "14:00", "17:00"], [DEMO_TUTORS[2], "16:30", "19:30"]],
 };
+const DEMO_BUSY = [{ day: 1, start: "18:00", end: "19:00", label: "POC Meeting", tutors: [DEMO_TUTORS[1], DEMO_TUTORS[2], DEMO_TUTORS[3]] }];
 const DEMO_EVENTS = [
   { date: "2026-10-28", start: "16:30", end: "", title: "AXIOM 1st Meeting", location: "Room 104", details: "Our first club meeting. Everyone is welcome." },
 ];
@@ -536,6 +541,7 @@ function demoSlots() {
     for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) {
       for (let t = start; addMinutes(t, 30) <= end; t = addMinutes(t, 30)) {
         if (`${iso} ${t}` < cutoff) continue;
+        if (DEMO_BUSY.some((x) => x.day === d.getDay() && x.tutors.includes(tutor) && t >= x.start && t < x.end)) continue;
         const taken = booked.filter((b) => b.date === iso && b.tutor === tutor && t >= b.time && t < addMinutes(b.time, b.duration || 30)).length;
         if (taken < 4) free.push({ date: iso, time: t, tutor, booked: taken });
       }
@@ -547,7 +553,12 @@ function demoSlots() {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) availability.push({ date: isoOf(d), tutor, start, end });
   }
-  return { sessionMinutes: 30, durations: [30, 60, 120], free, topics: DEFAULT_TOPICS, tutors: DEMO_TUTORS, availability, events: DEMO_EVENTS };
+  const busy = [];
+  for (let i = 0; i <= 62; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
+    DEMO_BUSY.filter((x) => x.day === d.getDay()).forEach((x) => busy.push({ date: isoOf(d), start: x.start, end: x.end, label: x.label, tutors: x.tutors }));
+  }
+  return { sessionMinutes: 30, durations: [30, 60, 120], free, topics: DEFAULT_TOPICS, tutors: DEMO_TUTORS, availability, events: DEMO_EVENTS, busy };
 }
 function demoBook(p) {
   const free = new Map(demoSlots().free.map((s) => [`${s.tutor}|${s.date}|${s.time}`, s.booked]));

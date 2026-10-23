@@ -58,6 +58,17 @@ En la pestaña **Events**, una fila por evento:
 
 Si dejas `Start` vacío, el sitio muestra "Time TBA". El calendario se actualiza al recargar la página.
 
+### 2c. Reuniones y horas bloqueadas (pestaña Busy)
+Para horas en que ciertos tutores no pueden dar tutorías (por ejemplo, el POC meeting), una fila por reunión:
+
+| Tutors | Day | Start | End | Label |
+|---|---|---|---|---|
+| C/2d Lt Merle Cintron, C/2d Lt Vivas, C/Maj Cortes Garay | Monday | 18:00 | 19:00 | POC Meeting |
+
+- **Tutors**: los nombres separados por comas, escritos igual que en Availability.
+- **Day**: un día de la semana (se repite cada semana) o una fecha (solo ese día).
+- Nadie puede reservar con esos tutores a esa hora, y la reunión sale en el calendario con sus nombres.
+
 En **Topics** pueden añadir, quitar o renombrar temas; la lista desplegable del sitio se actualiza sola.
 
 ### 3. Publicar el backend

@@ -8,6 +8,9 @@
  *                 Day is a weekday ("Monday" / "Lunes") for every week, or a date (2026-10-28) for one day.
  *   Topics        Category | Topic
  *   Events        Date | Start | End | Title | Location | Details  (shown on the site's calendar)
+ *   Busy          Tutors | Day | Start | End | Label
+ *                 Times those tutors can't be booked (e.g. a weekly meeting). Tutors is a comma-separated
+ *                 list of names exactly as in Availability; Day works like in Availability. Shown on the calendar.
  *   Tutor Applications  written by the site's "Become a tutor" form.
  *   Bookings      written by the site. Status goes Pending -> Accepted / Declined when the tutor
  *                 answers from the email. Set Status to "Cancelled" to free a slot by hand.
@@ -79,6 +82,9 @@ function setup() {
   ensureSheet_(ss, 'Events', ['Date', 'Start', 'End', 'Title', 'Location', 'Details'], [
     ['2026-10-28', '16:30', '', 'AXIOM 1st Meeting', 'Room 104', 'Our first club meeting. Everyone is welcome.'],
   ]);
+  ensureSheet_(ss, 'Busy', ['Tutors', 'Day', 'Start', 'End', 'Label'], [
+    ['C/2d Lt Merle Cintron, C/2d Lt Vivas, C/Maj Cortes Garay', 'Monday', '18:00', '19:00', 'POC Meeting'],
+  ]);
   ensureSheet_(ss, 'Topics', ['Category', 'Topic'], DEFAULT_TOPICS);
   ensureSheet_(ss, 'Bookings', BOOKING_HEADERS, []);
   ensureSheet_(ss, 'Tutor Applications', APPLICATION_HEADERS, []);
@@ -116,6 +122,8 @@ function doGet(e) {
     return json_({
       sessionMinutes: CONFIG.sessionMinutes, durations: CONFIG.durations, maxCadets: CONFIG.maxCadets, free: free, topics: topics_(),
       tutors: tutorNames_(), availability: blocks, events: events_(),
+      busy: busyBlocks_(CONFIG.calendarDays).map(x => ({
+        date: x.date, start: fromMinutes_(x.start), end: fromMinutes_(x.end), label: x.label, tutors: x.tutors })),
     });
   } catch (err) {
     return json_({ error: String(err) });
@@ -378,6 +386,13 @@ function freeSlots_() {
     }
   });
 
+  // Half hours a tutor is in a meeting (Busy sheet) can't be booked.
+  busyBlocks_(CONFIG.daysAhead).forEach(x => {
+    for (let m = x.start; m < x.end; m += step) {
+      x.tutors.forEach(t => { booked[[t, x.date, fromMinutes_(m)].join('|')] = CONFIG.maxCadets; });
+    }
+  });
+
   const cutoff = Utilities.formatDate(new Date(Date.now() + CONFIG.minNoticeHours * 3600e3), tz, 'yyyy-MM-dd HH:mm');
   const out = [];
   const seen = {};
@@ -391,6 +406,30 @@ function freeSlots_() {
     }
   });
   return out.sort((a, c) => (a.date + a.time + a.tutor).localeCompare(c.date + c.time + c.tutor));
+}
+
+/** Busy times (meetings) from today through `days` ahead: {date, tutors[], start, end, label}. */
+function busyBlocks_(days) {
+  const ss = SpreadsheetApp.getActive();
+  if (!ss.getSheetByName('Busy')) return [];
+  const tz = ss.getSpreadsheetTimeZone();
+  const rows = readRows_(ss, 'Busy');
+  const now = new Date();
+  const out = [];
+  for (let i = 0; i <= days; i++) {
+    const day = new Date(now.getTime() + i * 86400e3);
+    const iso = Utilities.formatDate(day, tz, 'yyyy-MM-dd');
+    const dow = Number(Utilities.formatDate(day, tz, 'u')) % 7;
+    rows.forEach(r => {
+      const tutors = String(r['Tutors'] || '').split(',').map(t => t.trim()).filter(Boolean);
+      if (!tutors.length || !dayMatches_(r['Day'], iso, dow, tz)) return;
+      const start = toMinutes_(cellTime_(r['Start'], tz));
+      const end = toMinutes_(cellTime_(r['End'], tz));
+      if (start == null || end == null || end <= start) return;
+      out.push({ date: iso, tutors: tutors, start: start, end: end, label: String(r['Label'] || 'Busy').trim() });
+    });
+  }
+  return out;
 }
 
 /** Every tutor time block from today through `days` ahead: {date, tutor, email, start, end} (minutes). */

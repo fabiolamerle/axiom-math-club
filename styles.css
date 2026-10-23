@@ -244,6 +244,8 @@ main.page { min-height: 60vh; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .cal-ev { background: var(--event); color: var(--event-fg); font-weight: 600; }
+.cal-ev.cal-busy { background: transparent; color: var(--fg); border: 1px dashed var(--muted); }
+.ev-item.ev-busy { border-left-style: dashed; border-left-color: var(--muted); }
 .cal-tu { border-left: 3px solid var(--c); color: var(--fg); background: var(--surface); }
 .cal-dots { display: none; gap: 3px; flex-wrap: wrap; }
 .cal-dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--c); }
