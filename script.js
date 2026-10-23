@@ -528,15 +528,6 @@ function demoBook(p) {
 }
 
 // ---------- start ----------
-// Today's date in the header, from the visitor's own clock.
-(function showToday() {
-  const d = new Date();
-  const t = $("#today-date");
-  if (!t) return;
-  t.dateTime = isoOf(d);
-  t.textContent = d.toLocaleDateString("en-US", { weekday: "long", month: "short", day: "numeric" });
-  $("#today").hidden = false;
-})();
 if ($("#demo-note")) $("#demo-note").hidden = !state.demo;
 $("#topic")?.addEventListener("change", renderSummary);
 document.querySelectorAll('input[name="format"]').forEach((r) => r.addEventListener("change", renderSummary));
