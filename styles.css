@@ -92,6 +92,12 @@ a { color: var(--accent); }
 .brand-name { font: 600 1.4rem/1 var(--font-display); letter-spacing: 0.12em; display: flex; flex-direction: column; }
 .brand-name small { font: 600 0.68rem/1.4 var(--font-body); letter-spacing: 0.22em; text-transform: uppercase; opacity: 0.75; }
 .nav { display: flex; align-items: center; gap: 20px; }
+.today {
+  margin: 0 auto 0 4px; padding: 6px 12px; border-radius: 999px; border: 1px solid rgba(255, 255, 255, 0.25);
+  font: 600 0.9rem/1 var(--font-display); letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap;
+}
+.today-label { color: var(--ticker-bg); }
+@media (min-width: 641px) and (max-width: 1060px) { .today { display: none; } }
 .nav a:not(.btn) { color: inherit; text-decoration: none; font-weight: 600; opacity: 0.85; }
 .nav a:not(.btn):hover { opacity: 1; text-decoration: underline; }
 .nav a[aria-current="page"]:not(.btn) { opacity: 1; text-decoration: underline; text-underline-offset: 6px; text-decoration-thickness: 2px; }
