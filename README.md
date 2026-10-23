@@ -99,7 +99,7 @@ El QR del sitio está en `qr-code.png`.
 - **Ver reservas**: pestaña `Bookings` (columna `Status`: Pending, Accepted o Declined).
 - **Cancelar una reserva**: cambia `Status` a `Cancelled`; la hora vuelve a quedar libre.
 - **Avisar a más personas** (ej. el presidente del club): en `Code.gs`, `alsoNotify: 'presidente@gmail.com'`.
-- **Ajustes** en `CONFIG` de `Code.gs`: duración de sesión, cuántos días adelante se puede reservar, y con cuántas horas de anticipación mínima.
+- **Ajustes** en `CONFIG` de `Code.gs`: duración de sesión, cuántos días adelante se puede reservar, y con cuántas horas de anticipación mínima (`minNoticeHours`, ahora 1 hora: se puede reservar el mismo día).
 - La fecha de la primera reunión está en `index.html`. El texto del anuncio que se mueve arriba (disclaimer) está en las 5 páginas: si lo cambias, cámbialo en todas.
 
 ## Límites

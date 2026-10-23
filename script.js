@@ -243,7 +243,7 @@ function renderDates() {
         "aria-label": `${d.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}, ${slots.length} open times`,
         onclick: () => { state.date = date; state.time = state.tutor = null; renderDates(); },
       },
-        el("span", { class: "dow" }, d.toLocaleDateString("en-US", { weekday: "short" })),
+        el("span", { class: "dow" }, date === todayISO() ? "Today" : d.toLocaleDateString("en-US", { weekday: "short" })),
         el("span", { class: "day" }, String(d.getDate())),
         el("span", { class: "mon" }, d.toLocaleDateString("en-US", { month: "short" })),
         el("span", { class: "count" }, `${slots.length} open`),
@@ -499,11 +499,14 @@ function demoSlots() {
   const booked = demoBooked();
   const free = [];
   const now = new Date();
-  for (let i = 1; i <= 14; i++) {
+  const soon = new Date(now.getTime() + 60 * 60 * 1000);
+  const cutoff = `${isoOf(soon)} ${String(soon.getHours()).padStart(2, "0")}:${String(soon.getMinutes()).padStart(2, "0")}`;
+  for (let i = 0; i <= 14; i++) {
     const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i);
     const iso = isoOf(d);
     for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) {
       for (let t = start; addMinutes(t, 30) <= end; t = addMinutes(t, 30)) {
+        if (`${iso} ${t}` < cutoff) continue;
         const taken = booked.some((b) => b.date === iso && b.tutor === tutor && t >= b.time && t < addMinutes(b.time, b.duration || 30));
         if (!taken) free.push({ date: iso, time: t, tutor });
       }

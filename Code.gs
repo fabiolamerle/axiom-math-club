@@ -18,7 +18,7 @@ const CONFIG = {
   durations: [30, 60, 120], // session lengths students can pick (minutes)
   daysAhead: 21,        // how far ahead students can book
   calendarDays: 62,     // how far ahead the calendar shows tutor availability
-  minNoticeHours: 12,   // students can't book closer than this to the session
+  minNoticeHours: 1,    // students can book the same day, up to this many hours before the session
   alsoNotify: '',       // extra emails (comma-separated) that get every booking request, e.g. the club president
   siteUrl: 'https://fabiolamerle.github.io/axiom-math-club/',
   defaultMeetingLink: '', // used for Online sessions when a tutor has no Meeting Link of their own
