@@ -31,6 +31,7 @@ const state = {
   duration: 30,
   tutor: null,
   others: 0,      // cadets already booked with this tutor at the chosen time
+  companions: 0,  // other cadets this person is booking for
   maxCadets: 4,
   topics: DEFAULT_TOPICS,
   sessionMinutes: 30,
@@ -213,7 +214,8 @@ function computeOptions() {
       if (!booked.has(key)) { fits = false; break; }
       others = Math.max(others, booked.get(key));
     }
-    if (fits) state.slots.push({ ...s, others });
+    // The whole party (this cadet plus companions) has to fit in the seats left.
+    if (fits && others + 1 + state.companions <= state.maxCadets) state.slots.push({ ...s, others });
   }
 }
 
@@ -268,6 +270,10 @@ function renderDates() {
 
 function renderTimes() {
   const box = $("#times");
+  if (state.time && !state.slots.some((o) => o.date === state.date && o.time === state.time && o.tutor === state.tutor)) {
+    state.time = state.tutor = null; // the chosen time no longer fits (e.g. more cadets were added)
+    state.others = 0;
+  }
   if (!state.date) {
     box.replaceChildren(el("p", { class: "muted" }, "Pick a day first."));
   } else {
@@ -291,6 +297,7 @@ function renderSummary() {
   $('#summary [data-k="topic"]').textContent = $("#topic").value || "—";
   $('#summary [data-k="format"]').textContent = $("#booking-form").elements.format.value || "—";
   $('#summary [data-k="when"]').textContent = state.date && state.time ? fmtWhen(state.date, state.time) : "—";
+  if ($('#summary [data-k="cadets"]')) $('#summary [data-k="cadets"]').textContent = String(1 + state.companions);
   $('#summary [data-k="tutor"]').textContent = state.tutor ? `${state.tutor}${state.time && state.others ? " (group)" : ""}` : "—";
   renderShareBox();
 }
@@ -412,6 +419,53 @@ function shiftMonth(n) {
   renderCalendar();
 }
 
+// ---------- booking for other cadets ----------
+function companionFields(n) {
+  const id = (f) => `c${n}-${f}`;
+  return el("fieldset", { class: "companion", "data-n": String(n) },
+    el("legend", {}, `Cadet ${n + 1}`),
+    el("button", { type: "button", class: "remove-companion", "aria-label": `Remove cadet ${n + 1}`, onclick: () => removeCompanion(n) }, "Remove"),
+    el("div", { class: "field" }, el("label", { for: id("name") }, "Full name"), el("input", { id: id("name"), "data-k": "name", autocomplete: "off" })),
+    el("div", { class: "field" }, el("label", { for: id("email") }, "Email"), el("input", { id: id("email"), "data-k": "email", type: "email", autocomplete: "off" })),
+    el("div", { class: "field" }, el("label", { for: id("phone") }, "Phone number"), el("input", { id: id("phone"), "data-k": "phone", type: "tel", inputmode: "tel", autocomplete: "off" })),
+    el("div", { class: "field" }, el("label", { for: id("grade") }, "AS year"),
+      el("select", { id: id("grade"), "data-k": "grade" }, el("option", { value: "" }, "Select…"),
+        ...["AS100", "AS200", "AS300", "AS400", "Other"].map((y) => el("option", {}, y)))));
+}
+
+function readCompanions() {
+  return [...document.querySelectorAll("#companions .companion")].map((fs) => {
+    const c = {};
+    fs.querySelectorAll("[data-k]").forEach((i) => { c[i.dataset.k] = i.value.trim(); });
+    return c;
+  });
+}
+
+// Rebuild the companion boxes for `count` cadets, keeping what was typed.
+function setCompanions(count) {
+  const typed = readCompanions();
+  state.companions = count;
+  const box = $("#companions");
+  box.replaceChildren(...Array.from({ length: count }, (_, i) => {
+    const fs = companionFields(i + 1);
+    Object.entries(typed[i] || {}).forEach(([k, v]) => { fs.querySelector(`[data-k="${k}"]`).value = v; });
+    return fs;
+  }));
+  box.hidden = count === 0;
+  $("#bring").checked = count > 0;
+  $("#add-companion").hidden = count === 0 || count >= state.maxCadets - 1;
+  computeOptions();
+  renderDates();
+}
+
+function removeCompanion(n) {
+  const typed = readCompanions();
+  typed.splice(n - 1, 1);
+  setCompanions(typed.length);
+  [...document.querySelectorAll("#companions .companion")].forEach((fs, i) =>
+    Object.entries(typed[i]).forEach(([k, v]) => { fs.querySelector(`[data-k="${k}"]`).value = v; }));
+}
+
 // A cadet joining a time someone already booked must agree to share the session.
 function renderShareBox() {
   const box = $("#share-box");
@@ -450,6 +504,14 @@ async function submitBooking(e) {
   if (!payload.topic) return showError("Choose a topic.");
   if (!payload.date || !payload.time || !payload.tutor) return showError("Pick a day and a time with a tutor.");
   if (!payload.format) return showError("Choose In person or Online.");
+  payload.companions = readCompanions();
+  for (const [i, c] of payload.companions.entries()) {
+    const who = c.name || `cadet ${i + 2}`;
+    if (!c.name) return showError(`Enter the name of cadet ${i + 2}.`);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email || "")) return showError(`Enter a valid email for ${who}.`);
+    if ((c.phone || "").replace(/\D/g, "").length < 7) return showError(`Enter a phone number for ${who}.`);
+    if (!c.grade) return showError(`Select the AS year for ${who}.`);
+  }
   payload.shareOk = Boolean(state.others && $("#share-ok").checked);
   if (state.others && !payload.shareOk) return showError("Check the box to agree to a group session, or pick another time.");
   if (!payload.name) return showError("Enter your name.");
@@ -466,7 +528,10 @@ async function submitBooking(e) {
       ? demoBook(payload)
       : await (await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) })).json();
     if (!res.ok) {
-      if (res.error === "share_required") {
+      if (res.error === "not_enough_seats") {
+        showError(res.message);
+        await loadSlots();
+      } else if (res.error === "share_required") {
         state.others = res.others || 1;
         renderSummary();
         showError("Someone just booked this time. Agree to a group session, or pick another time.");
@@ -496,7 +561,7 @@ function showConfirmation(b, p) {
   $("#c-id").textContent = b.id;
   $("#c-msg").textContent = state.demo
     ? "Demo mode: no email was sent."
-    : `${b.tutor} got your request. You'll get an email at ${p.email} when they accept or decline.`;
+    : `${b.tutor} got your request. ${p.companions.length ? "Everyone in this booking" : "You"} will get an email${p.companions.length ? "" : ` at ${p.email}`} when they accept or decline.`;
   $("#booking-form").hidden = true;
   $("#confirmation").hidden = false;
   $("#confirmation").focus();
@@ -507,6 +572,7 @@ function resetForm() {
   f.elements.notes.value = "";
   state.date = state.time = state.tutor = null;
   state.others = 0;
+  setCompanions(0);
   $("#confirmation").hidden = true;
   f.hidden = false;
   loadSlots();
@@ -542,7 +608,8 @@ function demoSlots() {
       for (let t = start; addMinutes(t, 30) <= end; t = addMinutes(t, 30)) {
         if (`${iso} ${t}` < cutoff) continue;
         if (DEMO_BUSY.some((x) => x.day === d.getDay() && x.tutors.includes(tutor) && t >= x.start && t < x.end)) continue;
-        const taken = booked.filter((b) => b.date === iso && b.tutor === tutor && t >= b.time && t < addMinutes(b.time, b.duration || 30)).length;
+        const taken = booked.filter((b) => b.date === iso && b.tutor === tutor && t >= b.time && t < addMinutes(b.time, b.duration || 30))
+          .reduce((sum, b) => sum + (b.seats || 1), 0);
         if (taken < 4) free.push({ date: iso, time: t, tutor, booked: taken });
       }
     }
@@ -568,8 +635,9 @@ function demoBook(p) {
     if (!free.has(key)) return { ok: false, error: "slot_taken" };
     others = Math.max(others, free.get(key));
   }
+  if (others + 1 + (p.companions || []).length > 4) return { ok: false, error: "not_enough_seats", message: "Not enough spots left with this tutor at this time." };
   if (others && !p.shareOk) return { ok: false, error: "share_required", others };
-  const booking = { id: "AX-" + Math.random().toString(36).slice(2, 8).toUpperCase(), date: p.date, time: p.time, duration: p.duration, tutor: p.tutor, topic: p.topic };
+  const booking = { id: "AX-" + Math.random().toString(36).slice(2, 8).toUpperCase(), date: p.date, time: p.time, duration: p.duration, tutor: p.tutor, topic: p.topic, seats: 1 + (p.companions || []).length };
   try { localStorage.setItem("axiom-demo-bookings", JSON.stringify([...demoBooked(), booking])); } catch {}
   return { ok: true, booking };
 }
@@ -579,6 +647,8 @@ if ($("#demo-note")) $("#demo-note").hidden = !state.demo;
 $("#topic")?.addEventListener("change", renderSummary);
 document.querySelectorAll('input[name="format"]').forEach((r) => r.addEventListener("change", renderSummary));
 $("#booking-form")?.addEventListener("submit", submitBooking);
+$("#bring")?.addEventListener("change", (e) => setCompanions(e.target.checked ? 1 : 0));
+$("#add-companion")?.addEventListener("click", () => setCompanions(state.companions + 1));
 $("#apply-form")?.addEventListener("submit", submitApplication);
 $("#book-another")?.addEventListener("click", resetForm);
 $("#cal-prev")?.addEventListener("click", () => shiftMonth(-1));

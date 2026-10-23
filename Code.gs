@@ -31,7 +31,7 @@ const CONFIG = {
 const FORMATS = ['In person', 'Online'];
 
 const BOOKING_HEADERS = ['Created', 'Booking ID', 'Status', 'Date', 'Time', 'Tutor', 'Tutor Email',
-  'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Format', 'Duration', 'Shared', 'Notes', 'Responded', 'Token'];
+  'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Format', 'Duration', 'Shared', 'Party Size', 'Companions', 'Companion Emails', 'Notes', 'Responded', 'Token'];
 
 const APPLICATION_HEADERS = ['Created', 'Status', 'Name', 'Email', 'Phone', 'AS Year', 'Highest Math',
   'Topics', 'Availability', 'Why'];
@@ -150,6 +150,16 @@ function doPost(e) {
   if (b.phone.replace(/\D/g, '').length < 7) return json_({ ok: false, error: 'invalid', message: 'Enter a valid phone number.' });
   if (!topics_().some(t => t[1] === b.topic)) return json_({ ok: false, error: 'invalid', message: 'Choose a topic from the list.' });
   if (FORMATS.indexOf(b.format) < 0) return json_({ ok: false, error: 'invalid', message: 'Choose In person or Online.' });
+  // Other cadets coming to the same session, booked by this person.
+  const companions = (Array.isArray(p.companions) ? p.companions : []).slice(0, CONFIG.maxCadets - 1).map(c => ({
+    name: clean(c && c.name), email: clean(c && c.email), phone: clean(c && c.phone), grade: clean(c && c.grade),
+  }));
+  for (const c of companions) {
+    if (!c.name || !c.grade) return json_({ ok: false, error: 'invalid', message: 'Fill in the name and AS year of every cadet.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email)) return json_({ ok: false, error: 'invalid', message: 'Enter a valid email for ' + c.name + '.' });
+    if (c.phone.replace(/\D/g, '').length < 7) return json_({ ok: false, error: 'invalid', message: 'Enter a valid phone number for ' + c.name + '.' });
+  }
+  const seats = 1 + companions.length;
   if (CONFIG.durations.indexOf(b.duration) < 0) return json_({ ok: false, error: 'invalid', message: 'Choose how long the session is.' });
   if (!b.tutor) return json_({ ok: false, error: 'invalid', message: 'Pick a time with a tutor.' });
 
@@ -169,6 +179,10 @@ function doPost(e) {
       others = Math.max(others, hit.booked);
     }
     if (!tutor) return json_({ ok: false, error: 'slot_taken' });
+    if (others + seats > CONFIG.maxCadets) {
+      return json_({ ok: false, error: 'not_enough_seats', left: CONFIG.maxCadets - others,
+        message: 'Only ' + (CONFIG.maxCadets - others) + ' spot(s) left with this tutor at this time. Pick another time or bring fewer cadets.' });
+    }
     if (others > 0 && !b.shareOk) {
       return json_({ ok: false, error: 'share_required', others: others,
         message: 'Another cadet already booked this time. Agree to share the session to continue.' });
@@ -177,13 +191,14 @@ function doPost(e) {
       id: 'AX-' + Utilities.getUuid().slice(0, 6).toUpperCase(),
       token: Utilities.getUuid().replace(/-/g, ''),
       date: b.date, time: b.time, tutor: tutor.name, tutorEmail: tutor.email, topic: b.topic, format: b.format,
-      duration: b.duration, others: others,
+      duration: b.duration, others: others, companions: companions,
     };
     const rec = {
       'Created': new Date().toISOString(), 'Booking ID': booking.id, 'Status': 'Pending',
       'Date': b.date, 'Time': b.time, 'Tutor': tutor.name, 'Tutor Email': tutor.email,
       'Student': b.name, 'Student Email': b.email, 'Student Phone': b.phone, 'Grade': b.grade,
-      'Topic': b.topic, 'Format': b.format, 'Duration': String(b.duration), 'Shared': others > 0 ? 'Yes (' + (others + 1) + ' cadets)' : 'No', 'Notes': b.notes, 'Responded': '', 'Token': booking.token,
+      'Topic': b.topic, 'Format': b.format, 'Duration': String(b.duration), 'Shared': others > 0 ? 'Yes (' + (others + seats) + ' cadets)' : 'No', 'Party Size': String(seats),
+      'Companions': companionsText_(companions), 'Companion Emails': companions.map(c => c.email).join(', '), 'Notes': b.notes, 'Responded': '', 'Token': booking.token,
     };
     const sh = SpreadsheetApp.getActive().getSheetByName('Bookings');
     ensureHeaders_(sh, BOOKING_HEADERS);
@@ -226,6 +241,8 @@ function adminStats_(password) {
     tutor: String(r['Tutor'] || '').trim(), topic: String(r['Topic'] || '').trim(),
     format: String(r['Format'] || 'In person').trim(), status: String(r['Status'] || '').trim(),
     year: String(r['Grade'] || '').trim(), student: anon(r['Student Email']),
+    students: [r['Student Email']].concat(String(r['Companion Emails'] || '').split(',')).map(e => e.trim()).filter(Boolean).map(anon),
+    years: [String(r['Grade'] || '').trim()].concat((String(r['Companions'] || '').match(/\((AS\d00|Other)\)/g) || []).map(y => y.slice(1, -1))),
   }));
   let applications = { total: 0, fresh: 0 };
   if (ss.getSheetByName('Tutor Applications')) {
@@ -342,8 +359,8 @@ function respondToBooking(id, token, decision) {
     return { ok: true, message: status + '. We could not email the student, so please contact them directly.' };
   }
   return { ok: true, message: status === 'Accepted'
-    ? 'Accepted. The student got a confirmation email.'
-    : 'Declined. The student was told to pick another time, and the slot is open again.' };
+    ? 'Accepted. The cadets in this booking got a confirmation email.'
+    : 'Declined. The cadets in this booking were told to pick another time, and the slot is open again.' };
 }
 
 function findBooking_(id) {
@@ -382,7 +399,7 @@ function freeSlots_() {
     const len = Number(r['Duration']) || step;
     for (let m = start; m < start + len; m += step) {
       const k = [String(r['Tutor']).trim(), cellDate_(r['Date'], tz), fromMinutes_(m)].join('|');
-      booked[k] = (booked[k] || 0) + 1;
+      booked[k] = (booked[k] || 0) + (Number(r['Party Size']) || 1);
     }
   });
 
@@ -506,15 +523,32 @@ function topics_() {
 // ---------- email ----------
 const FONT_ = 'font-family:Arial,sans-serif;';
 
+/** "Name (AS200) · email · phone", one line per companion. */
+function companionsText_(list) {
+  return list.map(c => c.name + ' (' + c.grade + ') · ' + c.email + ' · ' + c.phone).join('\n');
+}
+
+/** Everyone in one booking: the cadet who booked plus their companions' names. */
+function cadetNames_(r) {
+  const extra = String(r['Companions'] || '').split('\n').map(l => l.split(' (')[0].trim()).filter(Boolean);
+  return [String(r['Student'] || '').trim()].concat(extra);
+}
+
 function detailsTable_(r, forTutor) {
   const rows = [['Topic', r['Topic']], ['When', whenText_(r['Date'], r['Time'], r['Duration'])], ['Session', r['Format'] || 'In person'], ['Tutor', r['Tutor']]];
+  const names = cadetNames_(r);
   if (forTutor) {
     rows.push(['Student', r['Student'] + ' (' + r['Grade'] + ')'], ['Student email', r['Student Email']],
-      ['Student phone', r['Student Phone']], ['Notes', r['Notes'] || '—']);
+      ['Student phone', r['Student Phone']]);
+    if (r['Companions']) rows.push(['Also coming', r['Companions']]);
+    rows.push(['Notes', r['Notes'] || '—']);
+  } else if (names.length > 1) {
+    rows.push(['Cadets', names.join(', ')]);
   }
   rows.push(['Booking ID', r['Booking ID']]);
   return '<table cellpadding="6" style="border-collapse:collapse;' + FONT_ + '">' +
-    rows.map(x => '<tr><td style="color:#5a6880">' + esc_(x[0]) + '</td><td><b>' + esc_(x[1]) + '</b></td></tr>').join('') +
+    rows.map(x => '<tr><td style="color:#5a6880;vertical-align:top">' + esc_(x[0]) + '</td><td><b>' +
+      esc_(x[1]).replace(/\n/g, '<br>') + '</b></td></tr>').join('') +
     '</table>';
 }
 
@@ -529,7 +563,10 @@ function sendRequestEmails_(bk, st) {
   const rec = {
     'Topic': bk.topic, 'Format': bk.format, 'Duration': bk.duration, 'Date': bk.date, 'Time': bk.time, 'Tutor': bk.tutor, 'Booking ID': bk.id,
     'Student': st.name, 'Grade': st.grade, 'Student Email': st.email, 'Student Phone': st.phone, 'Notes': st.notes,
+    'Companions': companionsText_(bk.companions || []),
   };
+  const names = cadetNames_(rec);
+  const everyone = [st.email].concat((bk.companions || []).map(c => c.email));
   const when = whenText_(bk.date, bk.time, bk.duration);
   const online = bk.format === 'Online';
   const tutorNote = online
@@ -548,9 +585,11 @@ function sendRequestEmails_(bk, st) {
       to: bk.tutorEmail,
       replyTo: st.email,
       name: CONFIG.clubName,
-      subject: 'Session request: ' + bk.topic + ' · ' + when,
+      subject: 'Session request' + (names.length > 1 ? ' (' + names.length + ' cadets)' : '') + ': ' + bk.topic + ' · ' + when,
       htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">New tutoring request</h2>' +
-        '<p style="' + FONT_ + '">' + esc_(st.name) + ' wants a session with you. Can you take it?</p>' +
+        '<p style="' + FONT_ + '">' + (names.length > 1
+          ? esc_(names.join(', ')) + ' want a session with you together (booked by ' + esc_(st.name) + '). One answer covers all of them. Can you take it?'
+          : esc_(st.name) + ' wants a session with you. Can you take it?') + '</p>' +
         '<p style="' + FONT_ + 'background:#e2eafa;padding:10px;border-radius:6px">' + esc_(tutorNote) + '</p>' +
         (groupNote ? '<p style="' + FONT_ + 'background:#fff4d6;padding:10px;border-radius:6px">' + esc_(groupNote) + '</p>' : '') +
         detailsTable_(rec, true) + '<p>' + button_(base + '&decision=accept', 'Accept', true) +
@@ -570,10 +609,11 @@ function sendRequestEmails_(bk, st) {
   }
 
   MailApp.sendEmail({
-    to: st.email,
+    to: everyone.join(','),
     name: CONFIG.clubName,
     subject: 'Request received: ' + bk.topic + ' · ' + when,
-    htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">We got your request, ' + esc_(st.name.split(' ')[0]) + '!</h2>' +
+    htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">We got your request' + (names.length > 1 ? '' : ', ' + esc_(st.name.split(' ')[0])) + '!</h2>' +
+      (names.length > 1 ? '<p style="' + FONT_ + '">' + esc_(st.name) + ' booked this session for ' + esc_(names.join(', ')) + '.</p>' : '') +
       '<p style="' + FONT_ + '">We sent it to ' + esc_(bk.tutor) + '. You\'ll get another email when they accept or decline.</p>' +
       (bk.others > 0 ? '<p style="' + FONT_ + '">This is a <b>group session</b>: you agreed to share it with other cadets.</p>' : '') +
       detailsTable_(rec, false),
@@ -582,7 +622,8 @@ function sendRequestEmails_(bk, st) {
 
 function sendDecisionEmail_(r) {
   const accepted = r['Status'] === 'Accepted';
-  const first = esc_(String(r['Student']).split(' ')[0]);
+  const names = cadetNames_(r);
+  const first = names.length > 1 ? 'everyone' : esc_(String(r['Student']).split(' ')[0]);
   let howToJoin = '';
   if (accepted && r['Format'] === 'Online') {
     const link = meetingLink_(String(r['Tutor']));
@@ -595,7 +636,8 @@ function sendDecisionEmail_(r) {
     howToJoin = '<p style="' + FONT_ + '"><b>This session is in person.</b> Your tutor will confirm where to meet. You can also reply to this email to ask.</p>';
   }
   const msg = {
-    to: r['Student Email'],
+    to: [r['Student Email']].concat(String(r['Companion Emails'] || '').split(','))
+      .map(e => String(e).trim()).filter(Boolean).join(','),
     name: CONFIG.clubName,
     subject: (accepted ? 'Confirmed: ' : 'Not available: ') + r['Topic'] + ' · ' + whenText_(r['Date'], r['Time'], r['Duration']),
     htmlBody: accepted

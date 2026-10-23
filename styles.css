@@ -529,3 +529,14 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
   position: fixed; z-index: 20; max-width: 260px; padding: 6px 10px; border-radius: 6px; pointer-events: none;
   background: var(--fg); color: var(--bg); font-size: 0.85rem; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.2);
 }
+
+/* Booking for other cadets */
+.bring { display: grid; gap: 10px; padding: 12px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+.bring-hint { margin: -4px 0 0; font-size: 0.85rem; }
+.companion-list { display: grid; gap: 12px; }
+.companion { position: relative; display: grid; gap: 10px; margin: 0; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; }
+.companion legend { padding: 0 6px; font: 600 1rem/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; }
+.companion input, .companion select { background: var(--bg); }
+.remove-companion { position: absolute; top: 8px; right: 10px; border: 0; background: none; color: var(--danger); font-weight: 600; cursor: pointer; font-size: 0.85rem; }
+.remove-companion:hover { text-decoration: underline; }
+#add-companion { justify-self: start; }

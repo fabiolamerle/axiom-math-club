@@ -124,12 +124,20 @@ function computeStats() {
     sessionsAhead: upcomingSessions.size,
     groupSessions: [...seenSession].filter((k) => completed.filter((b) => sessionKey(b) === k).length > 1).length,
     minutes: [...tutors.values()].reduce((sum, t) => sum + t.minutes, 0),
-    cadets: new Set(completed.map((b) => b.student)).size,
+    // One booking can cover several cadets (booked together), so count every one of them.
+    cadets: new Set(completed.flatMap((b) => b.students || [b.student])).size,
     acceptRate: accepted.length + declined.length ? accepted.length / (accepted.length + declined.length) : null,
     tutors: [...tutors.values()].sort((a, b) => b.minutes - a.minutes || b.sessions - a.sessions || a.name.localeCompare(b.name)),
     topics: count(requests, (b) => b.topic || "Not given"),
     formats: count(accepted, (b) => (b.format === "Online" ? "Online" : "In person")),
-    years: count(requests, (b) => (YEARS.includes(b.year) ? b.year : "Other")),
+    years: (() => {
+      const map = new Map();
+      requests.flatMap((b) => b.years || [b.year]).forEach((y) => {
+        const k = YEARS.includes(y) ? y : "Other";
+        map.set(k, (map.get(k) || 0) + 1);
+      });
+      return map;
+    })(),
   };
 }
 

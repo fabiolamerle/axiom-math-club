@@ -109,6 +109,12 @@
               <option>Other</option>
             </select>
           </div>
+          <div class="bring">
+            <label class="share-check" for="bring"><input type="checkbox" id="bring"> I'm booking for another cadet too</label>
+            <p class="opt bring-hint">Fill in their info. Everyone gets the emails, and the tutor answers once for all of you.</p>
+            <div id="companions" class="companion-list" hidden></div>
+            <button type="button" class="btn btn-ghost btn-tiny" id="add-companion" hidden>+ Add another cadet</button>
+          </div>
           <div class="field">
             <label for="notes">What do you need help with? <span class="opt">Optional</span></label>
             <textarea id="notes" name="notes" rows="3" placeholder="e.g. Homework 4.3, problems 12–20 on inverse trig"></textarea>
@@ -118,6 +124,7 @@
             <div><dt>Topic</dt><dd data-k="topic">—</dd></div>
             <div><dt>When</dt><dd data-k="when">—</dd></div>
             <div><dt>Tutor</dt><dd data-k="tutor">—</dd></div>
+            <div><dt>Cadets</dt><dd data-k="cadets">1</dd></div>
             <div><dt>Session</dt><dd data-k="format">—</dd></div>
           </dl>
 
