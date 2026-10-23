@@ -430,7 +430,7 @@ function companionFields(n) {
     el("div", { class: "field" }, el("label", { for: id("phone") }, "Phone number"), el("input", { id: id("phone"), "data-k": "phone", type: "tel", inputmode: "tel", autocomplete: "off" })),
     el("div", { class: "field" }, el("label", { for: id("grade") }, "AS year"),
       el("select", { id: id("grade"), "data-k": "grade" }, el("option", { value: "" }, "Select…"),
-        ...["AS100", "AS200", "AS300", "AS400", "Other"].map((y) => el("option", {}, y)))));
+        ...["AS100", "AS200", "AS250", "AS300", "AS400", "AS700"].map((y) => el("option", {}, y)))));
 }
 
 function readCompanions() {

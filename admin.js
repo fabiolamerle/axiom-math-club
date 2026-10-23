@@ -7,7 +7,7 @@ const RANGES = [
   ["month", "This month"],
   ["30", "Last 30 days"],
 ];
-const YEARS = ["AS100", "AS200", "AS300", "AS400", "Other"];
+const YEARS = ["AS100", "AS200", "AS250", "AS300", "AS400", "AS700"];
 const PASS_KEY = "axiom-admin-pass";
 
 // ---------- loading ----------
@@ -156,7 +156,10 @@ function renderDashboard() {
   renderBars($("#chart-topics"), topEntries(s.topics, 8), "requests");
   renderTutorTable(s);
   renderBars($("#chart-format"), ["In person", "Online"].map((k) => [k, s.formats.get(k) || 0]), "sessions", true);
-  renderBars($("#chart-years"), YEARS.map((k) => [k, s.years.get(k) || 0]), "requests");
+  // Older bookings may say "Other"; show that bar only when there are any.
+  const yearRows = YEARS.map((k) => [k, s.years.get(k) || 0]);
+  if (s.years.get("Other")) yearRows.push(["Other", s.years.get("Other")]);
+  renderBars($("#chart-years"), yearRows, "requests");
   renderStatus(s);
 }
 
@@ -324,7 +327,7 @@ function demoStats() {
     bookings.push({
       date: isoOf(d), time: ["12:30", "15:00", "16:30", "18:00"][i % 4], duration: [30, 60, 60, 120][i % 4],
       tutor: tutors[(i * 7) % 4], topic: topics[(i * i + 3) % 9], format: i % 3 ? "In person" : "Online",
-      status, year: YEARS[i % 5], student: `s${i % 23}`,
+      status, year: YEARS[i % YEARS.length], student: `s${i % 23}`,
     });
   }
   const pad = (n) => String(n).padStart(2, "0");

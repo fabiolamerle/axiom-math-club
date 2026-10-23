@@ -242,7 +242,7 @@ function adminStats_(password) {
     format: String(r['Format'] || 'In person').trim(), status: String(r['Status'] || '').trim(),
     year: String(r['Grade'] || '').trim(), student: anon(r['Student Email']),
     students: [r['Student Email']].concat(String(r['Companion Emails'] || '').split(',')).map(e => e.trim()).filter(Boolean).map(anon),
-    years: [String(r['Grade'] || '').trim()].concat((String(r['Companions'] || '').match(/\((AS\d00|Other)\)/g) || []).map(y => y.slice(1, -1))),
+    years: [String(r['Grade'] || '').trim()].concat((String(r['Companions'] || '').match(/\((AS\d{3}|Other)\)/g) || []).map(y => y.slice(1, -1))),
   }));
   let applications = { total: 0, fresh: 0 };
   if (ss.getSheetByName('Tutor Applications')) {
