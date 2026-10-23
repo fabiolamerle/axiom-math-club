@@ -30,6 +30,8 @@ const state = {
   durations: [30, 60, 120],
   duration: 30,
   tutor: null,
+  others: 0,      // cadets already booked with this tutor at the chosen time
+  maxCadets: 4,
   topics: DEFAULT_TOPICS,
   sessionMinutes: 30,
   date: null,
@@ -170,6 +172,7 @@ async function loadSlots() {
     if (data.topics && data.topics.length) state.topics = data.topics;
     if (data.sessionMinutes) state.sessionMinutes = data.sessionMinutes;
     if (data.durations && data.durations.length) state.durations = data.durations;
+    if (data.maxCadets) state.maxCadets = data.maxCadets;
     if (state.durations.indexOf(state.duration) < 0) state.duration = state.durations[0];
     state.tutors = data.tutors || [];
     state.availability = data.availability || [];
@@ -193,15 +196,21 @@ async function loadSlots() {
 }
 
 // A start time works when the same tutor is free for every half hour of the chosen length.
+// Each option also notes how many cadets already booked that tutor then (group sessions).
 function computeOptions() {
-  const free = new Set(state.free.map((s) => `${s.tutor}|${s.date}|${s.time}`));
+  const booked = new Map(state.free.map((s) => [`${s.tutor}|${s.date}|${s.time}`, s.booked || 0]));
   const steps = state.duration / state.sessionMinutes;
-  state.slots = state.free.filter((s) => {
-    for (let k = 1; k < steps; k++) {
-      if (!free.has(`${s.tutor}|${s.date}|${addMinutes(s.time, k * state.sessionMinutes)}`)) return false;
+  state.slots = [];
+  for (const s of state.free) {
+    let others = 0;
+    let fits = true;
+    for (let k = 0; k < steps; k++) {
+      const key = `${s.tutor}|${s.date}|${addMinutes(s.time, k * state.sessionMinutes)}`;
+      if (!booked.has(key)) { fits = false; break; }
+      others = Math.max(others, booked.get(key));
     }
-    return true;
-  });
+    if (fits) state.slots.push({ ...s, others });
+  }
 }
 
 function renderDurations() {
@@ -261,12 +270,13 @@ function renderTimes() {
     const slots = slotsByDate().get(state.date) || [];
     box.replaceChildren(
       ...slots.map((s) => el("button", {
-        type: "button", class: "time-btn", style: `--c: ${tutorColor(s.tutor)}`,
+        type: "button", class: `time-btn${s.others ? " shared" : ""}`, style: `--c: ${tutorColor(s.tutor)}`,
         "aria-pressed": String(s.time === state.time && s.tutor === state.tutor),
-        onclick: () => { state.time = s.time; state.tutor = s.tutor; renderTimes(); },
+        onclick: () => { state.time = s.time; state.tutor = s.tutor; state.others = s.others; renderTimes(); },
       },
         `${fmtTime(s.time)} – ${fmtTime(addMinutes(s.time, state.duration))}`,
         el("small", { class: "who" }, el("span", { class: "dot", "aria-hidden": "true" }), s.tutor),
+        ...(s.others ? [el("small", { class: "group-tag" }, `Group · ${s.others} of ${state.maxCadets} booked`)] : []),
       ))
     );
   }
@@ -277,7 +287,8 @@ function renderSummary() {
   $('#summary [data-k="topic"]').textContent = $("#topic").value || "—";
   $('#summary [data-k="format"]').textContent = $("#booking-form").elements.format.value || "—";
   $('#summary [data-k="when"]').textContent = state.date && state.time ? fmtWhen(state.date, state.time) : "—";
-  $('#summary [data-k="tutor"]').textContent = state.tutor || "—";
+  $('#summary [data-k="tutor"]').textContent = state.tutor ? `${state.tutor}${state.time && state.others ? " (group)" : ""}` : "—";
+  renderShareBox();
 }
 
 // ---------- calendar ----------
@@ -397,6 +408,17 @@ function shiftMonth(n) {
   renderCalendar();
 }
 
+// A cadet joining a time someone already booked must agree to share the session.
+function renderShareBox() {
+  const box = $("#share-box");
+  if (!box) return;
+  const shared = Boolean(state.time && state.others);
+  box.hidden = !shared;
+  if (!shared) { $("#share-ok").checked = false; return; }
+  $("#share-text").textContent = `${state.others === 1 ? "1 cadet has" : `${state.others} cadets have`} already booked ${state.tutor} at this time. ` +
+    `This would be a group session with up to ${state.maxCadets} cadets.`;
+}
+
 // ---------- booking ----------
 function showError(msg) {
   const box = $("#form-error");
@@ -424,6 +446,8 @@ async function submitBooking(e) {
   if (!payload.topic) return showError("Choose a topic.");
   if (!payload.date || !payload.time || !payload.tutor) return showError("Pick a day and a time with a tutor.");
   if (!payload.format) return showError("Choose In person or Online.");
+  payload.shareOk = Boolean(state.others && $("#share-ok").checked);
+  if (state.others && !payload.shareOk) return showError("Check the box to agree to a group session, or pick another time.");
   if (!payload.name) return showError("Enter your name.");
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) return showError("Enter a valid email so we can confirm your session.");
   if (payload.phone.replace(/\D/g, "").length < 7) return showError("Enter a phone number so your tutor can reach you.");
@@ -438,7 +462,11 @@ async function submitBooking(e) {
       ? demoBook(payload)
       : await (await fetch(API_URL, { method: "POST", body: JSON.stringify(payload) })).json();
     if (!res.ok) {
-      if (res.error === "slot_taken") {
+      if (res.error === "share_required") {
+        state.others = res.others || 1;
+        renderSummary();
+        showError("Someone just booked this time. Agree to a group session, or pick another time.");
+      } else if (res.error === "slot_taken") {
         showError("Someone just booked that time. Pick another one.");
         await loadSlots();
       } else {
@@ -474,6 +502,7 @@ function resetForm() {
   const f = $("#booking-form");
   f.elements.notes.value = "";
   state.date = state.time = state.tutor = null;
+  state.others = 0;
   $("#confirmation").hidden = true;
   f.hidden = false;
   loadSlots();
@@ -507,8 +536,8 @@ function demoSlots() {
     for (const [tutor, start, end] of DEMO_WEEK[d.getDay()] || []) {
       for (let t = start; addMinutes(t, 30) <= end; t = addMinutes(t, 30)) {
         if (`${iso} ${t}` < cutoff) continue;
-        const taken = booked.some((b) => b.date === iso && b.tutor === tutor && t >= b.time && t < addMinutes(b.time, b.duration || 30));
-        if (!taken) free.push({ date: iso, time: t, tutor });
+        const taken = booked.filter((b) => b.date === iso && b.tutor === tutor && t >= b.time && t < addMinutes(b.time, b.duration || 30)).length;
+        if (taken < 4) free.push({ date: iso, time: t, tutor, booked: taken });
       }
     }
   }
@@ -521,10 +550,14 @@ function demoSlots() {
   return { sessionMinutes: 30, durations: [30, 60, 120], free, topics: DEFAULT_TOPICS, tutors: DEMO_TUTORS, availability, events: DEMO_EVENTS };
 }
 function demoBook(p) {
-  const free = new Set(demoSlots().free.map((s) => `${s.tutor}|${s.date}|${s.time}`));
+  const free = new Map(demoSlots().free.map((s) => [`${s.tutor}|${s.date}|${s.time}`, s.booked]));
+  let others = 0;
   for (let m = 0; m < p.duration; m += 30) {
-    if (!free.has(`${p.tutor}|${p.date}|${addMinutes(p.time, m)}`)) return { ok: false, error: "slot_taken" };
+    const key = `${p.tutor}|${p.date}|${addMinutes(p.time, m)}`;
+    if (!free.has(key)) return { ok: false, error: "slot_taken" };
+    others = Math.max(others, free.get(key));
   }
+  if (others && !p.shareOk) return { ok: false, error: "share_required", others };
   const booking = { id: "AX-" + Math.random().toString(36).slice(2, 8).toUpperCase(), date: p.date, time: p.time, duration: p.duration, tutor: p.tutor, topic: p.topic };
   try { localStorage.setItem("axiom-demo-bookings", JSON.stringify([...demoBooked(), booking])); } catch {}
   return { ok: true, booking };

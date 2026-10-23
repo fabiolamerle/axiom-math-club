@@ -43,6 +43,7 @@ En la pestaña **Availability**, una fila por bloque de tiempo:
 
 - **Day**: un día de la semana (inglés o español) se repite cada semana; una fecha (`2026-10-28` o `10/28/2026`) es solo ese día.
 - El estudiante escoge la duración (30 min, 1 hora o 2 horas) y ve cada hora con el nombre del tutor libre. Solo salen las horas en que ese tutor está libre toda la sesión.
+- **Sesiones en grupo:** hasta 4 cadetes (`maxCadets` en `Code.gs`) pueden reservar al mismo tutor a la misma hora. Desde el segundo cadete, el sitio muestra un aviso y el cadete tiene que aceptar compartir la sesión. La columna `Shared` de `Bookings` dice cuántos cadetes había al reservar. En el Admin, una sesión en grupo cuenta una sola vez para las horas del tutor.
 - Un tutor puede tener varias filas (una por cada día o bloque).
 - El nombre del tutor se escribe igual en todas sus filas; así se le asigna el mismo color en el calendario.
 - Los emails **no** se muestran en el sitio; solo se usan para enviar las notificaciones.

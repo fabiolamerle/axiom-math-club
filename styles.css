@@ -328,6 +328,15 @@ input:focus, select:focus, textarea:focus { outline: 2px solid var(--accent); ou
 .dur-btn[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: var(--navy-fg); }
 .time-btn .who { display: flex; align-items: center; justify-content: center; gap: 5px; text-align: center; }
 .time-btn .who .dot { width: 8px; height: 8px; }
+.time-btn.shared { border-style: dashed; border-color: var(--warn); }
+.time-btn .group-tag { font: 600 0.7rem/1.2 var(--font-body); color: var(--warn); }
+.time-btn[aria-pressed="true"] .group-tag { color: var(--ticker-bg); }
+.share-box { display: grid; gap: 8px; padding: 12px 14px; border-radius: 8px; border: 2px solid var(--warn); background: var(--surface); }
+.share-box p { margin: 0; }
+.share-title { display: flex; align-items: center; gap: 8px; font: 600 1.05rem/1 var(--font-display); text-transform: uppercase; letter-spacing: 0.04em; color: var(--warn); }
+.share-title b { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: var(--warn); color: var(--surface); font-size: 0.85rem; }
+.details .share-check { display: flex; gap: 8px; align-items: flex-start; font-weight: 600; cursor: pointer; }
+.share-check input { width: auto; margin-top: 3px; accent-color: var(--accent); }
 .time-btn {
   padding: 10px 6px; border-radius: 8px; cursor: pointer; font: 500 0.95rem/1.2 var(--font-mono);
   background: var(--bg); color: var(--fg); border: 1px solid var(--line); display: grid; gap: 3px; justify-items: center;

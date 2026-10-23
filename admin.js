@@ -94,8 +94,21 @@ function computeStats() {
   state.tutors.forEach(tutorRow);
   requests.forEach((b) => { tutorRow(b.tutor).requests++; });
   declined.forEach((b) => { tutorRow(b.tutor).declined++; });
-  completed.forEach((b) => { const t = tutorRow(b.tutor); t.sessions++; t.minutes += b.duration; });
-  upcoming.forEach((b) => { tutorRow(b.tutor).upcoming++; });
+  // A group session has one row per cadet, but the tutor gave that time once:
+  // count each session once and each half hour of tutor time once.
+  const sessionKey = (b) => `${b.tutor}|${b.date}|${b.time}|${b.duration}`;
+  const seenSession = new Set();
+  const seenSlot = new Set();
+  completed.forEach((b) => {
+    const t = tutorRow(b.tutor);
+    if (!seenSession.has(sessionKey(b))) { seenSession.add(sessionKey(b)); t.sessions++; }
+    for (let m = 0; m < b.duration; m += 30) {
+      const slot = `${b.tutor}|${b.date}|${addMinutes(b.time, m)}`;
+      if (!seenSlot.has(slot)) { seenSlot.add(slot); t.minutes += 30; }
+    }
+  });
+  const upcomingSessions = new Set(upcoming.map(sessionKey));
+  upcomingSessions.forEach((k) => { tutorRow(k.split("|")[0]).upcoming++; });
 
   const count = (list, key) => {
     const map = new Map();
@@ -107,7 +120,10 @@ function computeStats() {
     all, accepted, completed, upcoming, requests, declined,
     pending: all.filter((b) => st(b) === "pending"),
     cancelled: all.filter((b) => st(b).startsWith("cancel")),
-    minutes: completed.reduce((sum, b) => sum + b.duration, 0),
+    sessionsDone: seenSession.size,
+    sessionsAhead: upcomingSessions.size,
+    groupSessions: [...seenSession].filter((k) => completed.filter((b) => sessionKey(b) === k).length > 1).length,
+    minutes: [...tutors.values()].reduce((sum, t) => sum + t.minutes, 0),
     cadets: new Set(completed.map((b) => b.student)).size,
     acceptRate: accepted.length + declined.length ? accepted.length / (accepted.length + declined.length) : null,
     tutors: [...tutors.values()].sort((a, b) => b.minutes - a.minutes || b.sessions - a.sessions || a.name.localeCompare(b.name)),
@@ -145,10 +161,10 @@ function renderRange() {
 
 function renderKpis(s) {
   const tiles = [
-    ["Sessions completed", String(s.completed.length), "Accepted sessions that already happened"],
+    ["Sessions completed", String(s.sessionsDone), `${s.groupSessions} of them group sessions`],
     ["Hours tutored", fmtHours(s.minutes), "Total time of completed sessions"],
     ["Cadets helped", String(s.cadets), "Different cadets in completed sessions"],
-    ["Upcoming sessions", String(s.upcoming.length), "Accepted, not yet held"],
+    ["Upcoming sessions", String(s.sessionsAhead), "Accepted, not yet held"],
     ["Waiting for a tutor", String(s.pending.length), "Requests still Pending", s.pending.length ? "warn" : ""],
     ["Acceptance rate", s.acceptRate == null ? "—" : `${Math.round(s.acceptRate * 100)}%`, "Accepted ÷ (accepted + declined)"],
   ];

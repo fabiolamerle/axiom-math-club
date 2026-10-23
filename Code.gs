@@ -16,6 +16,7 @@ const CONFIG = {
   clubName: 'AXIOM Math Club',
   sessionMinutes: 30,   // time grid: sessions start on the half hour
   durations: [30, 60, 120], // session lengths students can pick (minutes)
+  maxCadets: 4,         // cadets one tutor can take in the same time slot (group session)
   daysAhead: 21,        // how far ahead students can book
   calendarDays: 62,     // how far ahead the calendar shows tutor availability
   minNoticeHours: 1,    // students can book the same day, up to this many hours before the session
@@ -27,7 +28,7 @@ const CONFIG = {
 const FORMATS = ['In person', 'Online'];
 
 const BOOKING_HEADERS = ['Created', 'Booking ID', 'Status', 'Date', 'Time', 'Tutor', 'Tutor Email',
-  'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Format', 'Duration', 'Notes', 'Responded', 'Token'];
+  'Student', 'Student Email', 'Student Phone', 'Grade', 'Topic', 'Format', 'Duration', 'Shared', 'Notes', 'Responded', 'Token'];
 
 const APPLICATION_HEADERS = ['Created', 'Status', 'Name', 'Email', 'Phone', 'AS Year', 'Highest Math',
   'Topics', 'Availability', 'Why'];
@@ -109,11 +110,11 @@ function doGet(e) {
   const q = (e && e.parameter) || {};
   if (q.action === 'respond') return responsePage_(q.id, q.token, q.decision);
   try {
-    const free = freeSlots_().map(s => ({ date: s.date, time: s.time, tutor: s.tutor }));
+    const free = freeSlots_().map(s => ({ date: s.date, time: s.time, tutor: s.tutor, booked: s.booked }));
     const blocks = availabilityBlocks_(CONFIG.calendarDays)
       .map(b => ({ date: b.date, tutor: b.tutor, start: fromMinutes_(b.start), end: fromMinutes_(b.end) }));
     return json_({
-      sessionMinutes: CONFIG.sessionMinutes, durations: CONFIG.durations, free: free, topics: topics_(),
+      sessionMinutes: CONFIG.sessionMinutes, durations: CONFIG.durations, maxCadets: CONFIG.maxCadets, free: free, topics: topics_(),
       tutors: tutorNames_(), availability: blocks, events: events_(),
     });
   } catch (err) {
@@ -134,7 +135,7 @@ function doPost(e) {
   const b = {
     name: clean(p.name), email: clean(p.email), phone: clean(p.phone), grade: clean(p.grade),
     topic: clean(p.topic), format: clean(p.format), date: clean(p.date), time: clean(p.time), notes: clean(p.notes),
-    tutor: clean(p.tutor), duration: Number(p.duration),
+    tutor: clean(p.tutor), duration: Number(p.duration), shareOk: p.shareOk === true,
   };
   if (!b.name || !b.grade) return json_({ ok: false, error: 'invalid', message: 'Fill in your name and AS year.' });
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(b.email)) return json_({ ok: false, error: 'invalid', message: 'Enter a valid email.' });
@@ -148,27 +149,33 @@ function doPost(e) {
   lock.waitLock(15000);
   let booking;
   try {
-    // The tutor must be free for every half hour the session covers.
+    // The tutor must have a seat left for every half hour the session covers.
     const free = freeSlots_();
     const start = toMinutes_(b.time);
     let tutor = null;
+    let others = 0; // most cadets already booked in any half hour of this session
     for (let m = start; start != null && m < start + b.duration; m += CONFIG.sessionMinutes) {
       const hit = free.find(s => s.date === b.date && s.time === fromMinutes_(m) && s.tutor === b.tutor);
       if (!hit) { tutor = null; break; }
       if (!tutor) tutor = { name: hit.tutor, email: hit.email };
+      others = Math.max(others, hit.booked);
     }
     if (!tutor) return json_({ ok: false, error: 'slot_taken' });
+    if (others > 0 && !b.shareOk) {
+      return json_({ ok: false, error: 'share_required', others: others,
+        message: 'Another cadet already booked this time. Agree to share the session to continue.' });
+    }
     booking = {
       id: 'AX-' + Utilities.getUuid().slice(0, 6).toUpperCase(),
       token: Utilities.getUuid().replace(/-/g, ''),
       date: b.date, time: b.time, tutor: tutor.name, tutorEmail: tutor.email, topic: b.topic, format: b.format,
-      duration: b.duration,
+      duration: b.duration, others: others,
     };
     const rec = {
       'Created': new Date().toISOString(), 'Booking ID': booking.id, 'Status': 'Pending',
       'Date': b.date, 'Time': b.time, 'Tutor': tutor.name, 'Tutor Email': tutor.email,
       'Student': b.name, 'Student Email': b.email, 'Student Phone': b.phone, 'Grade': b.grade,
-      'Topic': b.topic, 'Format': b.format, 'Duration': String(b.duration), 'Notes': b.notes, 'Responded': '', 'Token': booking.token,
+      'Topic': b.topic, 'Format': b.format, 'Duration': String(b.duration), 'Shared': others > 0 ? 'Yes (' + (others + 1) + ' cadets)' : 'No', 'Notes': b.notes, 'Responded': '', 'Token': booking.token,
     };
     const sh = SpreadsheetApp.getActive().getSheetByName('Bookings');
     ensureHeaders_(sh, BOOKING_HEADERS);
@@ -366,7 +373,8 @@ function freeSlots_() {
     if (start == null) return;
     const len = Number(r['Duration']) || step;
     for (let m = start; m < start + len; m += step) {
-      booked[[String(r['Tutor']).trim(), cellDate_(r['Date'], tz), fromMinutes_(m)].join('|')] = true;
+      const k = [String(r['Tutor']).trim(), cellDate_(r['Date'], tz), fromMinutes_(m)].join('|');
+      booked[k] = (booked[k] || 0) + 1;
     }
   });
 
@@ -377,9 +385,9 @@ function freeSlots_() {
     for (let m = b.start; m + step <= b.end; m += step) {
       const time = fromMinutes_(m);
       const k = [b.tutor, b.date, time].join('|');
-      if (b.date + ' ' + time < cutoff || booked[k] || seen[k]) continue;
+      if (b.date + ' ' + time < cutoff || (booked[k] || 0) >= CONFIG.maxCadets || seen[k]) continue;
       seen[k] = true;
-      out.push({ date: b.date, time: time, tutor: b.tutor, email: b.email });
+      out.push({ date: b.date, time: time, tutor: b.tutor, email: b.email, booked: booked[k] || 0 });
     }
   });
   return out.sort((a, c) => (a.date + a.time + a.tutor).localeCompare(c.date + c.time + c.tutor));
@@ -490,6 +498,10 @@ function sendRequestEmails_(bk, st) {
       ? 'Online session: when you accept, the student automatically gets your meeting link.'
       : 'Online session: you have no Meeting Link in the Availability sheet yet, so send the student your Zoom/Teams link.')
     : 'In-person session: reply to the student to agree on where to meet.';
+  const groupNote = bk.others > 0
+    ? 'Group session: ' + bk.others + (bk.others === 1 ? ' other cadet has' : ' other cadets have') +
+      ' already booked you at this time, and this cadet agreed to share it.'
+    : '';
   const base = ScriptApp.getService().getUrl() + '?action=respond&id=' + encodeURIComponent(bk.id) + '&token=' + bk.token;
 
   if (bk.tutorEmail) {
@@ -501,6 +513,7 @@ function sendRequestEmails_(bk, st) {
       htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">New tutoring request</h2>' +
         '<p style="' + FONT_ + '">' + esc_(st.name) + ' wants a session with you. Can you take it?</p>' +
         '<p style="' + FONT_ + 'background:#e2eafa;padding:10px;border-radius:6px">' + esc_(tutorNote) + '</p>' +
+        (groupNote ? '<p style="' + FONT_ + 'background:#fff4d6;padding:10px;border-radius:6px">' + esc_(groupNote) + '</p>' : '') +
         detailsTable_(rec, true) + '<p>' + button_(base + '&decision=accept', 'Accept', true) +
         button_(base + '&decision=decline', 'Decline', false) + '</p>' +
         '<p style="' + FONT_ + 'color:#5a6880">The student gets an email as soon as you answer. Reply to this email to write to the student.</p>',
@@ -523,6 +536,7 @@ function sendRequestEmails_(bk, st) {
     subject: 'Request received: ' + bk.topic + ' · ' + when,
     htmlBody: '<h2 style="' + FONT_ + 'color:#1b2d4b">We got your request, ' + esc_(st.name.split(' ')[0]) + '!</h2>' +
       '<p style="' + FONT_ + '">We sent it to ' + esc_(bk.tutor) + '. You\'ll get another email when they accept or decline.</p>' +
+      (bk.others > 0 ? '<p style="' + FONT_ + '">This is a <b>group session</b>: you agreed to share it with other cadets.</p>' : '') +
       detailsTable_(rec, false),
   });
 }
